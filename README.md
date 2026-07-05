@@ -123,63 +123,9 @@ MYTABS_PORT=47777
 MYTABS_LAUNCH_BROWSER=true
 ```
 
-## Keyboard Shortcuts
+## User Guide
 
-Tab Player Keyboard Shortcuts:
-
-| Key         | Description                                            | Since Version |
-| ----------- | ------------------------------------------------------ | ------------- |
-| Space       | Toggle Play / Pause                                    | Initial       |
-| Arrow Left  | Move cursor to the previous bar                        | 1.5.0         |
-| Arrow Right | Move cursor to the next bar                            | 1.5.0         |
-| Arrow Up    | Restart - Play from the start of the highlighted range | 1.5.0         |
-| S           | Play from the first bar containing notes (-2 offset)   | 1.5.0         |
-
-## Score Editor
-
-Open the editor with the **Edit Score** button on the player page, or create a blank tab from the **New Tab** page. The editor saves in Guitar Pro (`.gp`) format; editing a
-`.gp3`/`.gp4`/`.gp5`/`.gpx`/MusicXML tab converts it to `.gp` on first save (a timestamped backup of the previous file is kept on the server, up to 10).
-
-The **Bar…** toolbar button edits the current bar's time signature, tempo, key signature, repeats, triplet feel and section name. The **Tracks…** button switches the edited track, adds/removes tracks
-(guitar/bass presets) and re-tunes the current track. When a bar has multiple voices, voice buttons (V1/V2/…) appear in the toolbar.
-
-Editor Keyboard Shortcuts:
-
-| Key                  | Description                                                |
-| -------------------- | ---------------------------------------------------------- |
-| 0-9                  | Enter fret number (two digits combine, e.g. 1 then 2 → 12) |
-| Arrow Left / Right   | Previous / next beat (past the last beat appends a bar)    |
-| Arrow Up / Down      | Higher / lower string                                      |
-| Ctrl+Arrow, Tab      | Previous / next bar                                        |
-| Home / End           | First / last beat of the bar                               |
-| Ctrl+Home / Ctrl+End | Start / end of the score                                   |
-| Delete / Backspace   | Delete the note at the cursor                              |
-| Shift+Delete         | Delete the whole beat                                      |
-| Insert               | Insert a beat before the cursor                            |
-| Ctrl+Insert          | Insert a bar before the current one                        |
-| Ctrl+Shift+Insert    | Append a bar at the end                                    |
-| Ctrl+Delete          | Delete the current bar                                     |
-| R                    | Turn the beat into a rest                                  |
-| L                    | Tie to the previous note                                   |
-| + / -                | Longer / shorter note duration                             |
-| .                    | Toggle dotted note                                         |
-| Ctrl+Z / Ctrl+Y      | Undo / redo                                                |
-| Ctrl+C / X / V       | Copy / cut / paste beat                                    |
-| H                    | Hammer-on / pull-off                                       |
-| B                    | Bend (preset dialog)                                       |
-| V                    | Vibrato (none → slight → wide)                             |
-| S / Shift+S          | Shift slide / legato slide                                 |
-| P / I / D            | Palm mute / let ring / staccato                            |
-| X / O                | Dead note / ghost note                                     |
-| T / Shift+T          | Tapping / trill                                            |
-| G                    | Grace note (none → before beat → on beat)                  |
-| N                    | Harmonics (natural → artificial → pinch → tap)             |
-| A                    | Accent (none → normal → heavy)                             |
-| Y                    | Tremolo picking (off → 8th → 16th → 32nd)                  |
-| Ctrl+S               | Save to server                                             |
-| Ctrl+Shift+S         | Download as .gp file                                       |
-| Space                | Play / pause from the cursor                               |
-| ?                    | Show the shortcut list                                     |
+See **[docs/user-guide.md](docs/user-guide.md)** for the full guide — playing tabs, audio sync, settings, score editing, keyboard shortcuts, sharing, and more.
 
 ## Motivation
 
