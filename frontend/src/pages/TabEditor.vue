@@ -10,6 +10,8 @@ import { KEYMAP } from "../editor/keymap.ts";
 import { downloadGp, saveScoreToServer } from "../editor/persistence.ts";
 import EditorToolbar from "../components/editor/EditorToolbar.vue";
 import EditorStatusBar from "../components/editor/EditorStatusBar.vue";
+import EffectsPalette from "../components/editor/EffectsPalette.vue";
+import BendDialog from "../components/editor/BendDialog.vue";
 
 const alphaTab = await import("@coderline/alphatab");
 
@@ -26,7 +28,7 @@ const DURATION_LABELS = {
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
 export default defineComponent({
-    components: { EditorToolbar, EditorStatusBar, BModal },
+    components: { EditorToolbar, EditorStatusBar, EffectsPalette, BendDialog, BModal },
 
     /** @type {alphaTab.AlphaTabApi} */
     api: null,
@@ -51,6 +53,25 @@ export default defineComponent({
             saving: false,
             midiDirty: false,
             showHelp: false,
+            showBend: false,
+            fx: {
+                hammer: false,
+                palmMute: false,
+                letRing: false,
+                dead: false,
+                ghost: false,
+                staccato: false,
+                vibrato: false,
+                harmonic: false,
+                accent: false,
+                tremolo: false,
+                grace: false,
+                bend: false,
+                slideShift: false,
+                slideLegato: false,
+                tap: false,
+                trill: false,
+            },
             setting: {},
             keymap: KEYMAP,
             ui: {
@@ -119,7 +140,7 @@ export default defineComponent({
         }
 
         this.kb = new KeyboardController((command, arg) => this.dispatch(command, arg));
-        this.kb.isBlocked = () => this.showHelp;
+        this.kb.isBlocked = () => this.showHelp || this.showBend;
         this._onKeydown = (e) => {
             this.kb.handleKeydown(e);
             // Reflect the fret buffer in the status bar
@@ -351,6 +372,77 @@ export default defineComponent({
                 case "escape":
                     this.onEscape();
                     break;
+                case "toggleHammer":
+                    result = this.ctrl.toggleNoteEffectAtCursor("hammerPull");
+                    break;
+                case "togglePalmMute":
+                    result = this.ctrl.toggleNoteEffectAtCursor("palmMute");
+                    break;
+                case "toggleLetRing":
+                    result = this.ctrl.toggleNoteEffectAtCursor("letRing");
+                    break;
+                case "toggleDead":
+                    result = this.ctrl.toggleNoteEffectAtCursor("dead");
+                    break;
+                case "toggleGhost":
+                    result = this.ctrl.toggleNoteEffectAtCursor("ghost");
+                    break;
+                case "toggleStaccato":
+                    result = this.ctrl.toggleNoteEffectAtCursor("staccato");
+                    break;
+                case "cycleVibrato":
+                    result = this.ctrl.cycleNoteEffectAtCursor("vibrato");
+                    break;
+                case "cycleHarmonic":
+                    result = this.ctrl.cycleNoteEffectAtCursor("harmonic");
+                    break;
+                case "cycleAccent":
+                    result = this.ctrl.cycleNoteEffectAtCursor("accent");
+                    break;
+                case "cycleTremolo":
+                    result = this.ctrl.cycleTremoloAtCursor();
+                    break;
+                case "toggleSlideShift":
+                    result = this.toggleSlide(1); // SlideOutType.Shift
+                    break;
+                case "toggleSlideLegato":
+                    result = this.toggleSlide(2); // SlideOutType.Legato
+                    break;
+                case "toggleTap": {
+                    const r = this.ctrl.cursor.resolve();
+                    result = r ? this.ctrl.applyBeatEffectAtCursor({ kind: "tap", on: !r.beat.tap }) : null;
+                    break;
+                }
+                case "cycleGrace": {
+                    const r = this.ctrl.cursor.resolve();
+                    if (r) {
+                        // None(0) -> BeforeBeat(2) -> OnBeat(1) -> None
+                        const next = r.beat.graceType === 0 ? 2 : (r.beat.graceType === 2 ? 1 : 0);
+                        result = this.ctrl.applyBeatEffectAtCursor({ kind: "grace", type: next });
+                    }
+                    break;
+                }
+                case "bendDialog": {
+                    const r = this.ctrl.cursor.resolve();
+                    if (!r?.note) {
+                        notify({ type: "warn", text: "Place the cursor on a note first" });
+                        break;
+                    }
+                    this.showBend = true;
+                    break;
+                }
+                case "trillDialog":
+                    result = this.trillPrompt();
+                    break;
+                case "copyBeat":
+                    result = this.ctrl.copyBeatAtCursor();
+                    break;
+                case "cutBeat":
+                    result = this.ctrl.cutBeatAtCursor();
+                    break;
+                case "pasteBeat":
+                    result = this.ctrl.pasteBeatAtCursor();
+                    break;
                 case "help":
                     this.showHelp = true;
                     break;
@@ -360,6 +452,41 @@ export default defineComponent({
             }
 
             if (result && !result.ok && result.message) {
+                notify({ type: "warn", text: result.message });
+            }
+        },
+
+        toggleSlide(type) {
+            const r = this.ctrl.cursor.resolve();
+            if (!r?.note) {
+                return { ok: false, message: "No note at cursor" };
+            }
+            const next = r.note.slideOutType === type ? 0 : type;
+            return this.ctrl.applyNoteEffectAtCursor({ kind: "slideOut", type: next });
+        },
+
+        trillPrompt() {
+            const r = this.ctrl.cursor.resolve();
+            if (!r?.note) {
+                return { ok: false, message: "No note at cursor" };
+            }
+            if (r.note.trillValue > 0) {
+                return this.ctrl.applyNoteEffectAtCursor({ kind: "clearTrill" });
+            }
+            const input = window.prompt("Trill with fret:", String(r.note.fret + 2));
+            if (input === null) {
+                return null;
+            }
+            const fret = parseInt(input);
+            if (isNaN(fret)) {
+                return { ok: false, message: "Invalid fret" };
+            }
+            return this.ctrl.applyNoteEffectAtCursor({ kind: "trill", fret, speed: 16 });
+        },
+
+        applyBendPreset(preset) {
+            const result = this.ctrl.applyNoteEffectAtCursor({ kind: "bend", type: preset.type, points: preset.points });
+            if (!result.ok && result.message) {
                 notify({ type: "warn", text: result.message });
             }
         },
@@ -422,6 +549,26 @@ export default defineComponent({
                 const visualNumber = staff.tuning.length - cursor.pos.string + 1;
                 this.status.stringLabel = `${visualNumber} (${name})`;
             }
+
+            // Effect states for the palette
+            const note = r?.note ?? null;
+            const beat = r?.beat ?? null;
+            this.fx.hammer = !!note?.isHammerPullOrigin;
+            this.fx.palmMute = !!note?.isPalmMute;
+            this.fx.letRing = !!note?.isLetRing;
+            this.fx.dead = !!note?.isDead;
+            this.fx.ghost = !!note?.isGhost;
+            this.fx.staccato = !!note?.isStaccato;
+            this.fx.vibrato = (note?.vibrato ?? 0) !== 0;
+            this.fx.harmonic = (note?.harmonicType ?? 0) !== 0;
+            this.fx.accent = (note?.accentuated ?? 0) !== 0;
+            this.fx.bend = (note?.bendType ?? 0) !== 0;
+            this.fx.slideShift = note?.slideOutType === 1;
+            this.fx.slideLegato = note?.slideOutType === 2;
+            this.fx.trill = (note?.trillValue ?? -1) > 0;
+            this.fx.tap = !!beat?.tap;
+            this.fx.tremolo = beat?.tremoloSpeed != null;
+            this.fx.grace = (beat?.graceType ?? 0) !== 0;
 
             const fill = this.ctrl.barFill();
             if (fill) {
@@ -606,13 +753,17 @@ export default defineComponent({
             :title="tab.title || 'Untitled'"
             :trackName="trackName"
             @command="dispatch"
-        />
+        >
+            <EffectsPalette :fx="fx" :disabled="playing || !ready" @command="dispatch" />
+        </EditorToolbar>
 
         <div class="score-area">
             <div ref="atContainer" v-pre></div>
         </div>
 
         <EditorStatusBar :info="status" v-if="ready" />
+
+        <BendDialog v-model="showBend" @apply="applyBendPreset" />
 
         <BModal v-model="showHelp" title="Keyboard shortcuts" size="lg" ok-only>
             <div class="shortcuts">

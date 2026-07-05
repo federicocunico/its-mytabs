@@ -12,8 +12,9 @@ import { SnapshotHistory } from "./history.ts";
 import { type BarWarning, beatTicks, normalizeScore, rebuildScore } from "./normalize.ts";
 import { EditorValidationError } from "./validation.ts";
 import { removeNoteOnString, setNoteFret, toggleTie } from "./mutations/note.ts";
-import { deleteBeat, insertBeatAt, makeRest, setBeatDots, setBeatDuration } from "./mutations/beat.ts";
+import { applyBeatData, type BeatData, deleteBeat, insertBeatAt, makeRest, serializeBeat, setBeatDots, setBeatDuration } from "./mutations/beat.ts";
 import { appendBar, deleteBar, insertBar } from "./mutations/bar.ts";
+import { type BeatEffect, type NoteEffect, setBeatEffect, setNoteEffect } from "./mutations/effects.ts";
 
 type Score = alphaTab.model.Score;
 type Settings = alphaTab.Settings;
@@ -259,6 +260,126 @@ export class EditorController {
         }, true);
         this.cursor.clamp();
         return result;
+    }
+
+    // ---- effects (Phase 2) --------------------------------------------------
+
+    applyNoteEffectAtCursor(fx: NoteEffect): CommandResult {
+        return this.transact((touched) => {
+            const { note, bar } = this.requireNote();
+            setNoteEffect(note, fx);
+            touched.add(bar);
+        });
+    }
+
+    applyBeatEffectAtCursor(fx: BeatEffect): CommandResult {
+        return this.transact((touched) => {
+            const r = this.requireCursor();
+            setBeatEffect(r.beat, fx);
+            touched.add(r.bar);
+        });
+    }
+
+    /** Toggle a boolean note effect based on its current value. */
+    toggleNoteEffectAtCursor(kind: "palmMute" | "letRing" | "staccato" | "ghost" | "dead" | "hammerPull"): CommandResult {
+        const r = this.cursor.resolve();
+        const note = r?.note;
+        if (!note) {
+            return { ok: false, message: "No note at cursor" };
+        }
+        const current = {
+            palmMute: note.isPalmMute,
+            letRing: note.isLetRing,
+            staccato: note.isStaccato,
+            ghost: note.isGhost,
+            dead: note.isDead,
+            hammerPull: note.isHammerPullOrigin,
+        }[kind];
+        return this.applyNoteEffectAtCursor({ kind, on: !current } as NoteEffect);
+    }
+
+    /** Cycle enum-valued note effects through their common values. */
+    cycleNoteEffectAtCursor(kind: "vibrato" | "harmonic" | "accent"): CommandResult {
+        const r = this.cursor.resolve();
+        const note = r?.note;
+        if (!note) {
+            return { ok: false, message: "No note at cursor" };
+        }
+        switch (kind) {
+            case "vibrato": {
+                const next = (note.vibrato + 1) % 3; // None -> Slight -> Wide
+                return this.applyNoteEffectAtCursor({ kind: "vibrato", type: next });
+            }
+            case "harmonic": {
+                // None -> Natural -> Artificial -> Pinch -> Tap -> None
+                const order = [0, 1, 2, 3, 4];
+                const index = order.indexOf(note.harmonicType);
+                const next = order[(index + 1) % order.length];
+                return this.applyNoteEffectAtCursor({ kind: "harmonic", type: next, value: next === 2 ? 12 : 0 });
+            }
+            case "accent": {
+                const next = (note.accentuated + 1) % 3; // None -> Normal -> Heavy
+                return this.applyNoteEffectAtCursor({ kind: "accent", type: next });
+            }
+        }
+    }
+
+    /** Cycle tremolo picking: off -> 8th -> 16th -> 32nd -> off. */
+    cycleTremoloAtCursor(): CommandResult {
+        const r = this.cursor.resolve();
+        if (!r) {
+            return { ok: false, message: "No beat at cursor" };
+        }
+        const order: Array<alphaTab.model.Duration | null> = [null, Duration.Eighth, Duration.Sixteenth, Duration.ThirtySecond];
+        const index = order.indexOf(r.beat.tremoloSpeed ?? null);
+        const next = order[(index + 1) % order.length];
+        return this.applyBeatEffectAtCursor({ kind: "tremolo", speed: next });
+    }
+
+    // ---- clipboard (single beat) ---------------------------------------------
+
+    private clipboard: BeatData | null = null;
+
+    get hasClipboard(): boolean {
+        return this.clipboard !== null;
+    }
+
+    copyBeatAtCursor(): CommandResult {
+        const r = this.cursor.resolve();
+        if (!r) {
+            return { ok: false, message: "No beat at cursor" };
+        }
+        this.clipboard = serializeBeat(r.beat);
+        this.host.onStateChanged();
+        return OK;
+    }
+
+    cutBeatAtCursor(): CommandResult {
+        const copy = this.copyBeatAtCursor();
+        if (!copy.ok) {
+            return copy;
+        }
+        return this.deleteBeatAtCursor();
+    }
+
+    pasteBeatAtCursor(): CommandResult {
+        const data = this.clipboard;
+        if (!data) {
+            return { ok: false, message: "Clipboard is empty" };
+        }
+        return this.transact((touched) => {
+            const r = this.requireCursor();
+            applyBeatData(r.beat, data);
+            touched.add(r.bar);
+        });
+    }
+
+    private requireNote() {
+        const r = this.requireCursor();
+        if (!r.note) {
+            throw new EditorValidationError("No note at cursor");
+        }
+        return { ...r, note: r.note };
     }
 
     // ---- cursor movement ---------------------------------------------------

@@ -79,6 +79,8 @@ export default defineComponent({
                 <BDropdownItem @click='command("exit")'>Exit to player</BDropdownItem>
             </BDropdown>
         </div>
+
+        <slot />
     </div>
 </template>
 

@@ -147,6 +147,66 @@ describe("EditorController", () => {
         expect(fill).toEqual({ used: 3840, capacity: 3840 });
     });
 
+    it("toggles boolean note effects at the cursor", () => {
+        ctrl.cursor.pos.string = 4;
+        const result = ctrl.toggleNoteEffectAtCursor("palmMute");
+        expect(result.ok).toBe(true);
+
+        const note = () => ctrl.score.tracks[0].staves[0].bars[0].voices[0].beats[0].getNoteOnString(4)!;
+        expect(note().isPalmMute).toBe(true);
+
+        ctrl.toggleNoteEffectAtCursor("palmMute");
+        expect(note().isPalmMute).toBe(false);
+    });
+
+    it("rejects note effects when there is no note at the cursor", () => {
+        ctrl.cursor.pos.string = 2; // free string
+        const result = ctrl.toggleNoteEffectAtCursor("palmMute");
+        expect(result.ok).toBe(false);
+    });
+
+    it("cycles vibrato / harmonics / accents", () => {
+        ctrl.cursor.pos.string = 4;
+        const note = () => ctrl.score.tracks[0].staves[0].bars[0].voices[0].beats[0].getNoteOnString(4)!;
+
+        ctrl.cycleNoteEffectAtCursor("vibrato");
+        expect(note().vibrato).toBe(1); // Slight
+        ctrl.cycleNoteEffectAtCursor("vibrato");
+        expect(note().vibrato).toBe(2); // Wide
+        ctrl.cycleNoteEffectAtCursor("vibrato");
+        expect(note().vibrato).toBe(0); // back to None
+
+        ctrl.cycleNoteEffectAtCursor("harmonic");
+        expect(note().harmonicType).toBe(1); // Natural
+    });
+
+    it("applies note and beat effects at the cursor", () => {
+        ctrl.cursor.pos.string = 4;
+        const ok = ctrl.applyNoteEffectAtCursor({ kind: "hammerPull", on: true });
+        expect(ok.ok).toBe(true);
+
+        const beatResult = ctrl.applyBeatEffectAtCursor({ kind: "tap", on: true });
+        expect(beatResult.ok).toBe(true);
+        expect(ctrl.score.tracks[0].staves[0].bars[0].voices[0].beats[0].tap).toBe(true);
+    });
+
+    it("copies, cuts and pastes beats", () => {
+        ctrl.cursor.pos.string = 4;
+        expect(ctrl.copyBeatAtCursor().ok).toBe(true);
+        expect(ctrl.hasClipboard).toBe(true);
+
+        ctrl.moveRight();
+        ctrl.pasteBeatAtCursor();
+        expect(walkBeatChain(ctrl.score)).toEqual(["3", "3", "7", "5", "3", "5"]);
+
+        ctrl.cutBeatAtCursor(); // cut the pasted beat -> becomes rest content? No: cut removes beat
+        expect(walkBeatChain(ctrl.score)).toEqual(["3", "7", "5", "r", "3", "5"]);
+        ctrl.moveRight();
+        ctrl.moveRight();
+        ctrl.pasteBeatAtCursor(); // paste the cut beat over the rest
+        expect(walkBeatChain(ctrl.score)).toEqual(["3", "7", "5", "3", "3", "5"]);
+    });
+
     it("exports the edited score as GP bytes", () => {
         ctrl.cursor.pos.string = 4;
         ctrl.setFretAtCursor(12);

@@ -59,6 +59,47 @@ describe("insertBeatAt", () => {
     });
 });
 
+describe("serializeBeat / applyBeatData", () => {
+    it("round-trips a beat with notes and effects onto another beat", async () => {
+        const { serializeBeat, applyBeatData } = await import("./beat.ts");
+        const { setNoteEffect } = await import("./effects.ts");
+        const { score, settings } = loadTex(TEX_TWO_BARS);
+        const voice = voice0(score, 0);
+        const source = voice.beats[0]; // 3@s4
+
+        source.dots = 1;
+        setNoteEffect(source.notes[0], { kind: "palmMute", on: true });
+        setNoteEffect(source.notes[0], { kind: "vibrato", type: alphaTab.model.VibratoType.Wide });
+
+        const data = serializeBeat(source);
+        expect(JSON.parse(JSON.stringify(data))).toEqual(data); // plain JSON
+
+        const target = voice0(score, 1).beats[1]; // 5@s4 in bar 2
+        applyBeatData(target, data);
+        normalizeScore(score, settings, [target.voice.bar]);
+
+        expect(target.duration).toBe(source.duration);
+        expect(target.dots).toBe(1);
+        expect(target.notes.length).toBe(1);
+        expect(target.notes[0].fret).toBe(3);
+        expect(target.notes[0].string).toBe(4);
+        expect(target.notes[0].isPalmMute).toBe(true);
+        expect(target.notes[0].vibrato).toBe(alphaTab.model.VibratoType.Wide);
+    });
+
+    it("pasting a rest clears the target's notes", async () => {
+        const { serializeBeat, applyBeatData } = await import("./beat.ts");
+        const { score, settings } = loadTex(`\\ts 4 4 3.3.4 r.4 r.2`);
+        const voice = voice0(score, 0);
+
+        const data = serializeBeat(voice.beats[1]); // rest
+        applyBeatData(voice.beats[0], data);
+        normalizeScore(score, settings, [voice.bar]);
+
+        expect(voice.beats[0].isRest).toBe(true);
+    });
+});
+
 describe("deleteBeat", () => {
     it("removes the beat; normalize pads the bar back to full", () => {
         const { score, settings } = loadTex(TEX_TWO_BARS);

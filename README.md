@@ -161,6 +161,18 @@ Editor Keyboard Shortcuts:
 | + / -                | Longer / shorter note duration                             |
 | .                    | Toggle dotted note                                         |
 | Ctrl+Z / Ctrl+Y      | Undo / redo                                                |
+| Ctrl+C / X / V       | Copy / cut / paste beat                                    |
+| H                    | Hammer-on / pull-off                                       |
+| B                    | Bend (preset dialog)                                       |
+| V                    | Vibrato (none → slight → wide)                             |
+| S / Shift+S          | Shift slide / legato slide                                 |
+| P / I / D            | Palm mute / let ring / staccato                            |
+| X / O                | Dead note / ghost note                                     |
+| T / Shift+T          | Tapping / trill                                            |
+| G                    | Grace note (none → before beat → on beat)                  |
+| N                    | Harmonics (natural → artificial → pinch → tap)             |
+| A                    | Accent (none → normal → heavy)                             |
+| Y                    | Tremolo picking (off → 8th → 16th → 32nd)                  |
 | Ctrl+S               | Save to server                                             |
 | Ctrl+Shift+S         | Download as .gp file                                       |
 | Space                | Play / pause from the cursor                               |

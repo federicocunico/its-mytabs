@@ -58,6 +58,29 @@ export const KEYMAP: KeyBinding[] = [
     { code: "Insert", ctrl: true, shift: true, command: "appendBar", keyLabel: "Ctrl+Shift+Ins", description: "Append a bar at the end", group: "Bars" },
     { code: "Delete", ctrl: true, command: "deleteBar", keyLabel: "Ctrl+Del", description: "Delete the current bar", group: "Bars" },
 
+    // ---- Effects ----
+    { code: "KeyH", command: "toggleHammer", keyLabel: "H", description: "Hammer-on / pull-off", group: "Effects" },
+    { code: "KeyB", command: "bendDialog", keyLabel: "B", description: "Bend…", group: "Effects" },
+    { code: "KeyV", command: "cycleVibrato", keyLabel: "V", description: "Vibrato (none → slight → wide)", group: "Effects" },
+    { code: "KeyS", command: "toggleSlideShift", keyLabel: "S", description: "Shift slide to the next note", group: "Effects" },
+    { code: "KeyS", shift: true, command: "toggleSlideLegato", keyLabel: "Shift+S", description: "Legato slide to the next note", group: "Effects" },
+    { code: "KeyP", command: "togglePalmMute", keyLabel: "P", description: "Palm mute", group: "Effects" },
+    { code: "KeyI", command: "toggleLetRing", keyLabel: "I", description: "Let ring", group: "Effects" },
+    { code: "KeyX", command: "toggleDead", keyLabel: "X", description: "Dead note", group: "Effects" },
+    { code: "KeyO", command: "toggleGhost", keyLabel: "O", description: "Ghost note", group: "Effects" },
+    { code: "KeyT", command: "toggleTap", keyLabel: "T", description: "Tapping", group: "Effects" },
+    { code: "KeyT", shift: true, command: "trillDialog", keyLabel: "Shift+T", description: "Trill…", group: "Effects" },
+    { code: "KeyG", command: "cycleGrace", keyLabel: "G", description: "Grace note (none → before beat → on beat)", group: "Effects" },
+    { code: "KeyN", command: "cycleHarmonic", keyLabel: "N", description: "Harmonics (natural → artificial → pinch → tap)", group: "Effects" },
+    { code: "KeyA", command: "cycleAccent", keyLabel: "A", description: "Accent (none → normal → heavy)", group: "Effects" },
+    { code: "KeyD", command: "toggleStaccato", keyLabel: "D", description: "Staccato", group: "Effects" },
+    { code: "KeyY", command: "cycleTremolo", keyLabel: "Y", description: "Tremolo picking (off → 8th → 16th → 32nd)", group: "Effects" },
+
+    // ---- Clipboard ----
+    { code: "KeyC", ctrl: true, command: "copyBeat", keyLabel: "Ctrl+C", description: "Copy beat", group: "Edit" },
+    { code: "KeyX", ctrl: true, command: "cutBeat", keyLabel: "Ctrl+X", description: "Cut beat", group: "Edit" },
+    { code: "KeyV", ctrl: true, command: "pasteBeat", keyLabel: "Ctrl+V", description: "Paste beat", group: "Edit" },
+
     // ---- Edit / file ----
     { code: "KeyZ", ctrl: true, command: "undo", keyLabel: "Ctrl+Z", description: "Undo", group: "Edit" },
     { code: "KeyY", ctrl: true, command: "redo", keyLabel: "Ctrl+Y", description: "Redo", group: "Edit" },
