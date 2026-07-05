@@ -97,9 +97,38 @@ describe("KeyboardController", () => {
         expect(dispatched.map((d) => d.command)).toEqual(["setFret", "moveRight"]);
     });
 
-    it("supports numpad digits", () => {
+    it("supports numpad digits (NumLock on)", () => {
         kb.handleKeydown(keyEvent({ code: "Numpad7", key: "7" }));
         expect(dispatched).toEqual([{ command: "setFret", arg: 7 }]);
+    });
+
+    it("routes NumLock-off numpad keys to their control meaning", () => {
+        // Numpad0 with NumLock off produces key "Insert" -> insert beat, NOT fret 0
+        expect(kb.handleKeydown(keyEvent({ code: "Numpad0", key: "Insert" }))).toBe(true);
+        // NumpadDecimal -> Delete
+        expect(kb.handleKeydown(keyEvent({ code: "NumpadDecimal", key: "Delete" }))).toBe(true);
+        // Numpad4 -> ArrowLeft, Numpad8 -> ArrowUp
+        expect(kb.handleKeydown(keyEvent({ code: "Numpad4", key: "ArrowLeft" }))).toBe(true);
+        expect(kb.handleKeydown(keyEvent({ code: "Numpad8", key: "ArrowUp" }))).toBe(true);
+        // Numpad7 -> Home, Numpad1 -> End
+        expect(kb.handleKeydown(keyEvent({ code: "Numpad7", key: "Home" }))).toBe(true);
+        expect(kb.handleKeydown(keyEvent({ code: "Numpad1", key: "End" }))).toBe(true);
+
+        expect(dispatched.map((d) => d.command)).toEqual([
+            "insertBeat",
+            "deleteNote",
+            "moveLeft",
+            "stringUp",
+            "barStart",
+            "barEnd",
+        ]);
+    });
+
+    it("numpad plus/minus/decimal work regardless of NumLock", () => {
+        kb.handleKeydown(keyEvent({ code: "NumpadAdd", key: "+" }));
+        kb.handleKeydown(keyEvent({ code: "NumpadSubtract", key: "-" }));
+        kb.handleKeydown(keyEvent({ code: "NumpadDecimal", key: "." }));
+        expect(dispatched.map((d) => d.command)).toEqual(["durationLonger", "durationShorter", "toggleDot"]);
     });
 
     it("ignores keystrokes while typing in an input", () => {

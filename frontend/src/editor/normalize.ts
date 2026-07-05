@@ -83,6 +83,38 @@ function padVoiceWithRests(voice: Voice, missing: number): void {
     }
 }
 
+export type BarFillState = "ok" | "under" | "over";
+
+/**
+ * Validate a bar's content against its time signature.
+ * A voice containing exactly one rest beat is a valid full-bar rest regardless
+ * of the rest's written duration (standard notation convention) — this keeps
+ * empty/blank bars from being flagged.
+ */
+export function checkBarFill(bar: Bar): BarFillState {
+    const capacity = bar.masterBar.calculateDuration();
+    let under = false;
+
+    for (const voice of bar.voices) {
+        if (isPlaceholderVoice(voice)) {
+            continue;
+        }
+        if (voice.beats.length === 1 && voice.beats[0].isRest) {
+            continue; // full-bar rest
+        }
+
+        const used = usedTicks(voice);
+        if (used > capacity) {
+            return "over";
+        }
+        if (used < capacity) {
+            under = true;
+        }
+    }
+
+    return under ? "under" : "ok";
+}
+
 /**
  * Tier-2 normalization: rebuild the whole score through alphaTab's own
  * serialization pipeline. Used after structural edits (bar insert/delete) and

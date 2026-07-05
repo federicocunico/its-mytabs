@@ -86,9 +86,27 @@ describe("EditorController", () => {
         expect(walkBeatChain(ctrl.score).slice(0, 5)).toEqual(["r", "3", "5", "7", "5"]);
     });
 
-    it("changes duration and reports bar overflow warnings", () => {
+    it("changes duration and flags the bar as over-full", () => {
+        expect(ctrl.invalidBars).toEqual([]);
+
         ctrl.setDurationAtCursor(Duration.Half);
-        expect(ctrl.barWarnings).toEqual([{ trackIndex: 0, barIndex: 0, kind: "overflow" }]);
+        expect(ctrl.invalidBars).toEqual([{ barIndex: 0, state: "over" }]);
+
+        ctrl.undo();
+        expect(ctrl.invalidBars).toEqual([]);
+    });
+
+    it("flags under-full bars from freshly loaded files", () => {
+        const { score, settings } = loadTex(`\\ts 4 4 3.3.4 | 3.3.4 5.3.4 7.3.4 5.3.4`);
+        const h = makeHost();
+        const c = new EditorController(h);
+        c.attach(score, settings, 0);
+
+        expect(c.invalidBars).toEqual([{ barIndex: 0, state: "under" }]);
+
+        // Editing the bar pads it with rests -> becomes valid
+        c.setFretAtCursor(5);
+        expect(c.invalidBars).toEqual([]);
     });
 
     it("moveRight at the end of the score appends a new bar", () => {
@@ -207,14 +225,15 @@ describe("EditorController", () => {
         expect(walkBeatChain(ctrl.score)).toEqual(["3", "7", "5", "3", "3", "5"]);
     });
 
-    it("changes the time signature at the cursor and pads/warns bars", () => {
+    it("changes the time signature at the cursor and flags over-full bars", () => {
         const result = ctrl.setTimeSignatureAtCursor(3, 4, false);
         expect(result.ok).toBe(true);
         expect(ctrl.score.masterBars[0].timeSignatureNumerator).toBe(3);
         // the 4/4-full bar is over-full in 3/4
-        expect(ctrl.barWarnings).toEqual([{ trackIndex: 0, barIndex: 0, kind: "overflow" }]);
+        expect(ctrl.invalidBars).toEqual([{ barIndex: 0, state: "over" }]);
         ctrl.undo();
         expect(ctrl.score.masterBars[0].timeSignatureNumerator).toBe(4);
+        expect(ctrl.invalidBars).toEqual([]);
     });
 
     it("sets tempo and section at the cursor", () => {
@@ -238,6 +257,22 @@ describe("EditorController", () => {
         ctrl.removeTrackFromScore(1);
         expect(ctrl.score.tracks.length).toBe(1);
         expect(ctrl.cursor.trackIndex).toBe(0);
+    });
+
+    it("survives snapshots and export with UI bar styles applied", () => {
+        // The page marks invalid bars via bar.style; that must not corrupt undo or export
+        const bar = ctrl.score.tracks[0].staves[0].bars[0];
+        bar.style = new alphaTab.model.BarStyle();
+        bar.style.colors.set(alphaTab.model.BarSubElement.StandardNotationBarNumber, alphaTab.model.Color.fromJson("#dc3545"));
+
+        ctrl.cursor.pos.string = 4;
+        ctrl.setFretAtCursor(12);
+        ctrl.undo();
+        ctrl.redo();
+
+        const bytes = ctrl.exportGp();
+        const reloaded = alphaTab.importer.ScoreLoader.loadScoreFromBytes(bytes, new alphaTab.Settings());
+        expect(reloaded.tracks[0].staves[0].bars[0].voices[0].beats[0].getNoteOnString(4)!.fret).toBe(12);
     });
 
     it("exports the edited score as GP bytes", () => {

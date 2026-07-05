@@ -9,7 +9,7 @@
 import * as alphaTab from "@coderline/alphatab";
 import { EditorCursor } from "./EditorCursor.ts";
 import { SnapshotHistory } from "./history.ts";
-import { type BarWarning, beatTicks, normalizeScore, rebuildScore } from "./normalize.ts";
+import { type BarFillState, beatTicks, checkBarFill, normalizeScore, rebuildScore } from "./normalize.ts";
 import { EditorValidationError } from "./validation.ts";
 import { removeNoteOnString, setNoteFret, toggleTie } from "./mutations/note.ts";
 import { applyBeatData, type BeatData, deleteBeat, insertBeatAt, makeRest, serializeBeat, setBeatDots, setBeatDuration } from "./mutations/beat.ts";
@@ -57,7 +57,9 @@ export class EditorController {
     cursor!: EditorCursor;
 
     dirty = false;
-    barWarnings: BarWarning[] = [];
+
+    /** Bars of the edited staff whose content doesn't match the time signature. */
+    invalidBars: Array<{ barIndex: number; state: Exclude<BarFillState, "ok"> }> = [];
 
     private history = new SnapshotHistory();
     private attached = false;
@@ -70,8 +72,8 @@ export class EditorController {
         this.cursor = new EditorCursor(() => this.score, trackIndex);
         this.history.clear();
         this.dirty = false;
-        this.barWarnings = [];
         this.attached = true;
+        this.refreshValidation();
         this.host.onStateChanged();
     }
 
@@ -115,11 +117,14 @@ export class EditorController {
             throw e;
         }
 
-        this.barWarnings = opts.skipNormalize ? [] : normalizeScore(this.score, this.settings, touched);
+        if (!opts.skipNormalize) {
+            normalizeScore(this.score, this.settings, touched);
+        }
 
         if (opts.structural) {
             this.replaceScore(rebuildScore(this.score, this.settings));
         } else {
+            this.refreshValidation();
             this.host.requestRender();
         }
 
@@ -131,7 +136,23 @@ export class EditorController {
     private replaceScore(score: Score): void {
         this.score = score;
         this.cursor.clamp();
+        this.refreshValidation();
         this.host.onScoreReplaced(score);
+    }
+
+    /** Recompute per-bar time-signature validation for the edited staff. */
+    private refreshValidation(): void {
+        this.invalidBars = [];
+        const staff = this.score.tracks[this.cursor.trackIndex]?.staves[this.cursor.staffIndex];
+        if (!staff) {
+            return;
+        }
+        for (const bar of staff.bars) {
+            const state = checkBarFill(bar);
+            if (state !== "ok") {
+                this.invalidBars.push({ barIndex: bar.index, state });
+            }
+        }
     }
 
     undo(): CommandResult {
@@ -357,6 +378,7 @@ export class EditorController {
         this.cursor.trackIndex = trackIndex;
         this.cursor.staffIndex = 0;
         this.cursor.clamp();
+        this.refreshValidation();
         this.host.onScoreReplaced(this.score);
         this.host.onStateChanged();
     }

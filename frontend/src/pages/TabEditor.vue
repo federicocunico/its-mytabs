@@ -227,6 +227,7 @@ export default defineComponent({
                 requestRender: () => this.scheduleRender(),
                 onScoreReplaced: (score) => {
                     // the controller's cursor owns the authoritative track index
+                    this.applyBarValidationStyles();
                     this.api.renderScore(score, [this.ctrl.cursor.trackIndex]);
                 },
                 onStateChanged: () => this.refreshUi(),
@@ -242,6 +243,7 @@ export default defineComponent({
                 }
                 this.ctrl.attach(score, this.api.settings, this.trackIndex);
                 this.trackName = score.tracks[this.trackIndex].name;
+                this.applyBarValidationStyles();
                 this.api.renderTracks([score.tracks[this.trackIndex]]);
                 this.ready = true;
             });
@@ -627,6 +629,7 @@ export default defineComponent({
             requestAnimationFrame(() => {
                 this.renderScheduled = false;
                 if (this.api && this.ctrl) {
+                    this.applyBarValidationStyles();
                     this.api.renderScore(this.ctrl.score, [this.ctrl.cursor.trackIndex]);
                 }
             });
@@ -694,16 +697,60 @@ export default defineComponent({
                 this.status.fillCapacity = fill.capacity;
             }
 
-            // Notify only when the warning set actually changes (refreshUi runs on every cursor move)
-            const warningsKey = JSON.stringify(this.ctrl.barWarnings);
-            if (warningsKey !== this._lastWarningsKey) {
-                this._lastWarningsKey = warningsKey;
-                for (const warning of this.ctrl.barWarnings) {
-                    notify({ type: "warn", text: `Bar ${warning.barIndex + 1} now has more beats than the time signature allows.` });
+            this.updateOverlay();
+        },
+
+        /** Paint invalid bars' numbers red via alphaTab's style API (must run BEFORE a render). */
+        applyBarValidationStyles() {
+            const staff = this.ctrl.score.tracks[this.ctrl.cursor.trackIndex]?.staves[this.ctrl.cursor.staffIndex];
+            if (!staff) {
+                return;
+            }
+            const invalid = new Set(this.ctrl.invalidBars.map((b) => b.barIndex));
+            const red = alphaTab.model.Color.fromJson("#dc3545");
+
+            for (const bar of staff.bars) {
+                if (invalid.has(bar.index)) {
+                    const style = new alphaTab.model.BarStyle();
+                    style.colors.set(alphaTab.model.BarSubElement.StandardNotationBarNumber, red);
+                    style.colors.set(alphaTab.model.BarSubElement.GuitarTabsBarNumber, red);
+                    bar.style = style;
+                } else if (bar.style) {
+                    bar.style = undefined;
                 }
             }
+        },
 
-            this.updateOverlay();
+        /** Translucent red tint over each invalid bar (positioned AFTER a render). */
+        updateInvalidBarOverlays() {
+            const lookup = this.api?.boundsLookup;
+            const invalid = this.ctrl?.invalidBars ?? [];
+            const els = this.invalidBarEls ?? (this.invalidBarEls = []);
+
+            while (els.length < invalid.length) {
+                const el = document.createElement("div");
+                el.className = "editor-invalid-bar";
+                this.$refs.atContainer.appendChild(el);
+                els.push(el);
+            }
+
+            els.forEach((el, i) => {
+                if (!el.isConnected) {
+                    this.$refs.atContainer.appendChild(el);
+                }
+                const entry = invalid[i];
+                const bounds = entry !== undefined && lookup ? lookup.findMasterBarByIndex(entry.barIndex) : null;
+                if (!bounds) {
+                    el.style.display = "none";
+                    return;
+                }
+                const rect = bounds.visualBounds;
+                el.style.display = "block";
+                el.style.left = `${rect.x}px`;
+                el.style.top = `${rect.y}px`;
+                el.style.width = `${rect.w}px`;
+                el.style.height = `${rect.h}px`;
+            });
         },
 
         updateOverlay() {
@@ -711,6 +758,7 @@ export default defineComponent({
                 return;
             }
             const lookup = this.api.renderer?.boundsLookup ?? this.api.boundsLookup;
+            this.updateInvalidBarOverlays();
             const r = this.ctrl.cursor.resolve();
             if (!lookup || !r) {
                 return;
@@ -939,6 +987,15 @@ export default defineComponent({
         border-radius: 3px;
         pointer-events: none;
         z-index: 11;
+    }
+
+    .editor-invalid-bar {
+        position: absolute;
+        display: none;
+        background: rgba(220, 53, 69, 0.12);
+        border-bottom: 2px solid rgba(220, 53, 69, 0.7);
+        pointer-events: none;
+        z-index: 9;
     }
 
     .key-label {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as alphaTab from "@coderline/alphatab";
 import { loadTex, scoreJson, TEX_TWO_BARS, voice0, walkBeatChain } from "./test-utils.ts";
-import { beatTicks, normalizeScore } from "./normalize.ts";
+import { beatTicks, checkBarFill, normalizeScore } from "./normalize.ts";
 
 const { Duration } = alphaTab.model;
 
@@ -31,6 +31,66 @@ describe("beatTicks", () => {
         beat.tupletNumerator = 3;
         beat.tupletDenominator = 2;
         expect(beatTicks(beat)).toBe(320);
+    });
+});
+
+describe("checkBarFill", () => {
+    it("reports ok for an exactly full bar", () => {
+        const { score } = loadTex(TEX_TWO_BARS);
+        expect(checkBarFill(score.tracks[0].staves[0].bars[0])).toBe("ok");
+        expect(checkBarFill(score.tracks[0].staves[0].bars[1])).toBe("ok");
+    });
+
+    it("reports under for a missing beat", () => {
+        const { score } = loadTex(TEX_TWO_BARS);
+        const voice = voice0(score, 0);
+        voice.beats.splice(3, 1);
+        expect(checkBarFill(voice.bar)).toBe("under");
+    });
+
+    it("reports over for an oversized duration", () => {
+        const { score } = loadTex(TEX_TWO_BARS);
+        const voice = voice0(score, 0);
+        voice.beats[0].duration = alphaTab.model.Duration.Half;
+        expect(checkBarFill(voice.bar)).toBe("over");
+    });
+
+    it("treats a single rest of any duration as a valid full-bar rest", () => {
+        // quarter rest alone in 4/4
+        const { score } = loadTex(`\\ts 4 4 r.4 | 3.3.4 5.3.4 7.3.4 5.3.4`);
+        expect(checkBarFill(score.tracks[0].staves[0].bars[0])).toBe("ok");
+
+        // whole rest in 3/4
+        const three = loadTex(`\\ts 3 4 r.1 | 3.3.4 5.3.4 7.3.4`);
+        expect(checkBarFill(three.score.tracks[0].staves[0].bars[0])).toBe("ok");
+    });
+
+    it("a single NOTE beat is not exempt", () => {
+        const { score } = loadTex(`\\ts 4 4 3.3.4 | 3.3.1`);
+        expect(checkBarFill(score.tracks[0].staves[0].bars[0])).toBe("under");
+    });
+
+    it("respects dots and tuplets in the arithmetic", () => {
+        // dotted half + quarter = 4/4 exactly
+        const dotted = loadTex(`\\ts 4 4 3.3.2 {d} 5.3.4`);
+        expect(checkBarFill(dotted.score.tracks[0].staves[0].bars[0])).toBe("ok");
+
+        // three eighth triplets = one quarter; plus 3 quarters = full
+        const tuplets = loadTex(`\\ts 4 4 3.3.8 {tu 3} 3.3.8 {tu 3} 3.3.8 {tu 3} 5.3.4 7.3.4 5.3.4`);
+        expect(checkBarFill(tuplets.score.tracks[0].staves[0].bars[0])).toBe("ok");
+    });
+
+    it("ignores placeholder-empty voices", () => {
+        const { score, settings } = loadTex(TEX_TWO_BARS);
+        for (const b of score.tracks[0].staves[0].bars) {
+            const emptyVoice = new alphaTab.model.Voice();
+            const emptyBeat = new alphaTab.model.Beat();
+            emptyBeat.isEmpty = true;
+            emptyVoice.addBeat(emptyBeat);
+            b.addVoice(emptyVoice);
+        }
+        score.finish(settings);
+        expect(checkBarFill(score.tracks[0].staves[0].bars[0])).toBe("ok");
     });
 });
 
