@@ -274,6 +274,52 @@ export async function replaceTab(tab: TabInfo, tabFileData: Uint8Array, ext: str
 }
 
 /**
+ * How many timestamped editor backups to keep per tab.
+ */
+const MAX_SCORE_BACKUPS = 10;
+
+/**
+ * Save an edited score from the editor. The editor always exports Guitar Pro 7
+ * format, so the stored file becomes `tab.gp` regardless of the original
+ * extension. The previous file is kept as a timestamped backup
+ * (`tab.<ext>.<timestamp>`, same scheme as replaceTab) and old backups are
+ * pruned to the newest MAX_SCORE_BACKUPS. `originalFilename` is preserved —
+ * it records what the user uploaded, not what the editor wrote.
+ */
+export async function saveScore(tab: TabInfo, tabFileData: Uint8Array) {
+    const dir = path.join(tabDir, tab.id.toString());
+
+    // Backup the current file with a collision-safe timestamped name
+    const oldFilePath = getTabFilePath(tab);
+    let backupPath = oldFilePath + "." + Date.now().toString();
+    let n = 0;
+    while (await fs.exists(backupPath)) {
+        backupPath = oldFilePath + "." + Date.now().toString() + "-" + (++n).toString();
+    }
+    await Deno.rename(oldFilePath, backupPath);
+
+    // Prune old backups, newest first (ordered by the timestamp in the name)
+    const backups: { name: string; ts: number; n: number }[] = [];
+    for await (const entry of Deno.readDir(dir)) {
+        const match = entry.isFile && entry.name.match(/^tab\.[A-Za-z0-9]+\.(\d+)(?:-(\d+))?$/);
+        if (match) {
+            backups.push({ name: entry.name, ts: parseInt(match[1]), n: match[2] ? parseInt(match[2]) : 0 });
+        }
+    }
+    backups.sort((a, b) => b.ts - a.ts || b.n - a.n);
+    for (const backup of backups.slice(MAX_SCORE_BACKUPS)) {
+        await Deno.remove(path.join(dir, backup.name));
+    }
+
+    // Write the new score
+    const filename = "tab.gp";
+    await Deno.writeFile(path.join(dir, filename), tabFileData);
+
+    tab.filename = filename;
+    await writeTabInfo(tab);
+}
+
+/**
  * Read the tabDir and find the max ID
  */
 export async function getNextTabID(): Promise<number> {

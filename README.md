@@ -135,6 +135,37 @@ Tab Player Keyboard Shortcuts:
 | Arrow Up    | Restart - Play from the start of the highlighted range | 1.5.0         |
 | S           | Play from the first bar containing notes (-2 offset)   | 1.5.0         |
 
+## Score Editor
+
+Open the editor with the **Edit Score** button on the player page, or create a blank tab from the **New Tab** page. The editor saves in Guitar Pro (`.gp`) format; editing a
+`.gp3`/`.gp4`/`.gp5`/`.gpx`/MusicXML tab converts it to `.gp` on first save (a timestamped backup of the previous file is kept on the server, up to 10).
+
+Editor Keyboard Shortcuts:
+
+| Key                  | Description                                                |
+| -------------------- | ---------------------------------------------------------- |
+| 0-9                  | Enter fret number (two digits combine, e.g. 1 then 2 → 12) |
+| Arrow Left / Right   | Previous / next beat (past the last beat appends a bar)    |
+| Arrow Up / Down      | Higher / lower string                                      |
+| Ctrl+Arrow, Tab      | Previous / next bar                                        |
+| Home / End           | First / last beat of the bar                               |
+| Ctrl+Home / Ctrl+End | Start / end of the score                                   |
+| Delete / Backspace   | Delete the note at the cursor                              |
+| Shift+Delete         | Delete the whole beat                                      |
+| Insert               | Insert a beat before the cursor                            |
+| Ctrl+Insert          | Insert a bar before the current one                        |
+| Ctrl+Shift+Insert    | Append a bar at the end                                    |
+| Ctrl+Delete          | Delete the current bar                                     |
+| R                    | Turn the beat into a rest                                  |
+| L                    | Tie to the previous note                                   |
+| + / -                | Longer / shorter note duration                             |
+| .                    | Toggle dotted note                                         |
+| Ctrl+Z / Ctrl+Y      | Undo / redo                                                |
+| Ctrl+S               | Save to server                                             |
+| Ctrl+Shift+S         | Download as .gp file                                       |
+| Space                | Play / pause from the cursor                               |
+| ?                    | Show the shortcut list                                     |
+
 ## Motivation
 
 A few months ago, I saw a music game called Rocksmith 2014 Remastered on sale on Steam. I bought it, grabbed my brother's abandoned bass, and started playing.

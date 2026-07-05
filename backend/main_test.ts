@@ -192,6 +192,77 @@ Deno.test({
     },
 });
 
+Deno.test({
+    name: "save-score endpoint (HTTP)",
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        // Sign in with the user registered in the previous test
+        const signInRes = await fetch(`${baseURL}/api/auth/sign-in/email`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: "test+ci@example.com", password: "password123" }),
+        });
+        assertEquals(signInRes.status, 200, "sign-in failed");
+        await signInRes.body?.cancel();
+        const cookiePair = signInRes.headers.get("set-cookie")!.split(";", 1)[0];
+
+        const id = await createTab(new Uint8Array([1, 2, 3]), "gp5", "Save Score HTTP", "Editor", "score.gp5");
+
+        // GP7 files are zip containers — payload must start with PK
+        const gpBytes = new Uint8Array([0x50, 0x4B, 0x03, 0x04, 42]);
+        const form = new FormData();
+        form.append("file", new File([gpBytes], "tab.gp"));
+
+        // Without auth -> rejected
+        const resNoAuth = await fetch(`${baseURL}/api/tab/${encodeURIComponent(id)}/save-score`, {
+            method: "POST",
+            body: form,
+        });
+        const noAuthJson = await resNoAuth.json();
+        assertEquals(noAuthJson.ok, false);
+
+        // With auth -> saved as tab.gp
+        const form2 = new FormData();
+        form2.append("file", new File([gpBytes], "tab.gp"));
+        const res = await fetch(`${baseURL}/api/tab/${encodeURIComponent(id)}/save-score`, {
+            method: "POST",
+            headers: { Cookie: cookiePair },
+            body: form2,
+        });
+        const json = await res.json();
+        assertEquals(json.ok, true, JSON.stringify(json));
+        assertEquals(json.filename, "tab.gp");
+
+        const { getTab } = await import("./tab.ts");
+        const tab = await getTab(id);
+        assertEquals(tab.filename, "tab.gp");
+        assertEquals(tab.originalFilename, "score.gp5");
+
+        // Wrong extension -> rejected
+        const form3 = new FormData();
+        form3.append("file", new File([gpBytes], "tab.gp5"));
+        const resBadExt = await fetch(`${baseURL}/api/tab/${encodeURIComponent(id)}/save-score`, {
+            method: "POST",
+            headers: { Cookie: cookiePair },
+            body: form3,
+        });
+        const badExtJson = await resBadExt.json();
+        assertEquals(badExtJson.ok, false);
+
+        // Corrupt payload (not a zip) -> rejected
+        const form4 = new FormData();
+        form4.append("file", new File([new Uint8Array([1, 2, 3, 4])], "tab.gp"));
+        const resCorrupt = await fetch(`${baseURL}/api/tab/${encodeURIComponent(id)}/save-score`, {
+            method: "POST",
+            headers: { Cookie: cookiePair },
+            body: form4,
+        });
+        const corruptJson = await resCorrupt.json();
+        assertEquals(corruptJson.ok, false);
+    },
+});
+
 Deno.test.afterAll(async () => {
     closeServer();
 

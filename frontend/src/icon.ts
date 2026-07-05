@@ -11,13 +11,17 @@ import {
     faArrowRightFromBracket,
     faArrowRightToBracket,
     faCheck,
+    faEllipsisVertical,
     faFile,
     faFolder,
     faGear,
     faMagnifyingGlass,
     faPause,
+    faPen,
     faPlay,
     faPlus,
+    faRotateLeft,
+    faRotateRight,
     faStar,
     faXmark,
 } from "@fortawesome/free-solid-svg-icons";
@@ -38,6 +42,10 @@ library.add([
     faStar,
     faStarRegular,
     faArrowLeft,
+    faEllipsisVertical,
+    faPen,
+    faRotateLeft,
+    faRotateRight,
 ]);
 
 export { FontAwesomeIcon };

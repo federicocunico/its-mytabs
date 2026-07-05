@@ -123,6 +123,25 @@ export class EditorCursor {
         return true;
     }
 
+    /** Jump to the first/last beat of the current bar. */
+    toBarEdge(edge: "start" | "end"): void {
+        const voice = this.voiceAt(this.pos.barIndex);
+        if (!voice) {
+            return;
+        }
+        this.pos.beatIndex = edge === "start" ? 0 : voice.beats.length - 1;
+    }
+
+    /** Jump to the first beat of the first bar / last beat of the last bar. */
+    toScoreEdge(edge: "start" | "end"): void {
+        const staff = this.staff();
+        if (!staff) {
+            return;
+        }
+        this.pos.barIndex = edge === "start" ? 0 : staff.bars.length - 1;
+        this.toBarEdge(edge);
+    }
+
     /** Snap all indices back into range (after structural edits or score replacement). */
     clamp(): void {
         const score = this.getScore();

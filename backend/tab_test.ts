@@ -25,6 +25,7 @@ const {
     getConfigJSONPath,
     getAllTabs,
     replaceTab,
+    saveScore,
     updateTab,
     updateTabFav,
     addAudio,
@@ -511,6 +512,47 @@ Deno.test("removeYoutube", async () => {
     config = await getConfigJSON(id);
     assertExists(config);
     assertEquals(config!.youtube.length, 0);
+});
+
+Deno.test("saveScore", async () => {
+    const originalData = new Uint8Array([80, 75, 1, 2, 3]); // arbitrary original
+    const id = await createTab(originalData, "gp5", "Save Score Test", "Editor Artist", "song.gp5");
+
+    let tab = await getTab(id);
+    const tabDirPath = path.join(tempDir, "tabs", id);
+
+    // First save: converts to tab.gp, keeps a backup of the original, preserves originalFilename
+    const editedData1 = new Uint8Array([80, 75, 9, 9, 9]);
+    await saveScore(tab, editedData1);
+
+    tab = await getTab(id);
+    assertEquals(tab.filename, "tab.gp");
+    assertEquals(tab.originalFilename, "song.gp5");
+    assertEquals(await Deno.readFile(path.join(tabDirPath, "tab.gp")), editedData1);
+
+    const entries = [];
+    for await (const entry of Deno.readDir(tabDirPath)) {
+        entries.push(entry.name);
+    }
+    const backup = entries.find((name) => name.startsWith("tab.gp5."));
+    assertExists(backup);
+    assertEquals(await Deno.readFile(path.join(tabDirPath, backup!)), originalData);
+
+    // Repeated saves prune old backups down to the newest 10
+    for (let i = 0; i < 15; i++) {
+        await saveScore(tab, new Uint8Array([80, 75, i]));
+    }
+
+    const backups = [];
+    for await (const entry of Deno.readDir(tabDirPath)) {
+        if (/^tab\.gp5?\.\d+/.test(entry.name)) {
+            backups.push(entry.name);
+        }
+    }
+    assertEquals(backups.length, 10);
+
+    // The current file always holds the latest save
+    assertEquals(await Deno.readFile(path.join(tabDirPath, "tab.gp")), new Uint8Array([80, 75, 14]));
 });
 
 // Clean up

@@ -10,6 +10,7 @@ import Settings from "./pages/Settings.vue";
 import TabNew from "./pages/TabNew.vue";
 
 const Tab = () => import("./pages/Tab.vue");
+const TabEditor = () => import("./pages/TabEditor.vue");
 
 const routes: RouteRecordRaw[] = [
     {
@@ -49,6 +50,12 @@ const routes: RouteRecordRaw[] = [
                         meta: { hideFooter: true },
                     },
                     {
+                        name: "tabEditor",
+                        path: "/tab/:id/editor",
+                        component: TabEditor,
+                        meta: { hideFooter: true },
+                    },
+                    {
                         name: "settings",
                         path: "/settings",
                         component: Settings,
@@ -78,8 +85,9 @@ export const router = createRouter({
 // Demo mode navigation guard
 router.beforeEach((to, from, next) => {
     if (window.isDemo === true) {
-        // Allow access to Settings, Tab pages, and Register (setup) page only
-        const isTabPage = to.path.startsWith("/tab/");
+        // Allow access to Settings, Tab pages, and Register (setup) page only.
+        // The score editor is write-only functionality — block it in demo mode.
+        const isTabPage = to.path.startsWith("/tab/") && !to.path.endsWith("/editor");
         const isSettingsPage = to.path === "/settings";
         const isRegisterPage = to.path === "/register";
 

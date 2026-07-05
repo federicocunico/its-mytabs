@@ -94,7 +94,8 @@ export default defineComponent({
                 const data = await res.json();
                 notify({ text: `Created ${type} tab`, type: "success" });
                 if (data.id) {
-                    this.$router.push(`/tab/${data.id}`);
+                    // Open new blank tabs directly in the score editor
+                    this.$router.push(`/tab/${data.id}/editor`);
                 }
             } catch (e) {
                 notify({ text: e.message || "Unknown error", type: "error" });

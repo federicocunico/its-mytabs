@@ -82,6 +82,22 @@ describe("EditorCursor", () => {
         expect(cursor.pos.beatIndex).toBe(lastVoiceBeats.length - 1);
     });
 
+    it("jumps to bar and score edges", () => {
+        const { cursor } = makeCursor();
+        cursor.moveBeat(1);
+        cursor.toBarEdge("end");
+        expect(cursor.pos.beatIndex).toBe(3);
+        cursor.toBarEdge("start");
+        expect(cursor.pos.beatIndex).toBe(0);
+
+        cursor.toScoreEdge("end");
+        expect(cursor.pos.barIndex).toBe(1);
+        expect(cursor.pos.beatIndex).toBe(1);
+        cursor.toScoreEdge("start");
+        expect(cursor.pos.barIndex).toBe(0);
+        expect(cursor.pos.beatIndex).toBe(0);
+    });
+
     it("setFromBeat places the cursor from a clicked beat", () => {
         const { cursor, score } = makeCursor();
         const beat = score.tracks[0].staves[0].bars[1].voices[0].beats[1];

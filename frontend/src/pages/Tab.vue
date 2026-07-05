@@ -96,6 +96,11 @@ export default defineComponent({
         };
     },
     computed: {
+        isDrumTrackSelected() {
+            // `ready` and `selectedTrack` are reactive; isDrum() reads the non-reactive api
+            return this.ready && this.selectedTrack >= 0 && this.isDrum();
+        },
+
         animatedCursor() {
             return this.setting.cursor === "animated" || this.setting.scrollMode === ScrollMode.Smooth;
         },
@@ -1324,6 +1329,10 @@ export default defineComponent({
             this.$router.push(`/tab/${this.tabID}/edit/info`);
         },
 
+        editScore() {
+            this.$router.push(`/tab/${this.tabID}/editor?track=${this.selectedTrack}`);
+        },
+
         hasBackingTrack() {
             return !!this.api.score.backingTrack;
         },
@@ -1480,8 +1489,12 @@ export default defineComponent({
                 </div>
 
                 <div class="btn-edit" v-if="isLoggedIn">
+                    <button class="btn btn-secondary" @click="editScore()" :disabled="isDrumTrackSelected" :title='isDrumTrackSelected ? "Drum tracks cannot be edited yet" : "Open the score editor"'>
+                        <font-awesome-icon :icon='["fas", "pen"]' />
+                        Edit Score
+                    </button>
                     <button class="btn btn-secondary" @click="edit()">
-                        Edit
+                        Details
                     </button>
                 </div>
             </div>

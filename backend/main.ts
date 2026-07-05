@@ -25,6 +25,7 @@ import {
     removeAudio,
     removeYoutube,
     replaceTab,
+    saveScore,
     updateAudio,
     updateConfigJSON,
     updateTab,
@@ -349,6 +350,44 @@ export async function main() {
 
             return c.json({
                 ok: true,
+            });
+        } catch (e) {
+            return generalError(c, e);
+        }
+    });
+
+    // Save edited score from the editor (always .gp — Gp7Exporter output)
+    app.post("/api/tab/:id/save-score", async (c) => {
+        try {
+            await checkLogin(c);
+            const id = c.req.param("id");
+
+            const tab = await getTab(id);
+
+            const form = await c.req.formData();
+            const file = form.get("file");
+
+            if (!(file instanceof File)) {
+                throw new Error("No file uploaded");
+            }
+
+            const ext = file.name.split(".").pop()?.toLowerCase();
+            if (ext !== "gp") {
+                throw new Error("The editor can only save .gp files");
+            }
+
+            const bytes = new Uint8Array(await file.arrayBuffer());
+
+            // GP7 files are zip containers — cheap sanity check against corrupt uploads
+            if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4B) {
+                throw new Error("Invalid .gp file");
+            }
+
+            await saveScore(tab, bytes);
+
+            return c.json({
+                ok: true,
+                filename: "tab.gp",
             });
         } catch (e) {
             return generalError(c, e);
