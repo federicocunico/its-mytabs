@@ -34,6 +34,8 @@
         "vite-plugin-compression": "~0.5.1",
         "socket.io-client": "~4.8.1",
         "bootstrap": "5.3.8",
-        "bootstrap-vue-next": "~0.40.4"
+        "bootstrap-vue-next": "~0.40.4",
+        "vitest": "~3.2.4",
+        "happy-dom": "~18.0.1"
     }
 }

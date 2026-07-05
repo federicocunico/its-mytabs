@@ -1,5 +1,6 @@
 <script>
 import { ActionBuffer, baseURL, checkFetch, connectSocketIO, convertAlphaTexSyncPoint, generalError, getInstrumentName, getSetting, releaseWakeLock, requestWakeLock } from "../app.js";
+import { buildDisplayResources, getFileURL, getStaveProfile, getTempToken } from "../alphatab-shared.ts";
 import { defineComponent } from "vue";
 import { BDropdown, BDropdownDivider, BDropdownItem } from "bootstrap-vue-next";
 import { notify } from "@kyvg/vue3-notification";
@@ -532,21 +533,11 @@ export default defineComponent({
         },
 
         getFileURL(tempToken) {
-            return baseURL + `/api/tab/${this.tabID}/file?tempToken=${tempToken}`;
+            return getFileURL(this.tabID, tempToken);
         },
 
         async getTempToken() {
-            const fileURL = baseURL + `/api/tab/${this.tabID}/temp-token`;
-
-            // fetch the file as array buffer
-            const response = await fetch(fileURL, {
-                credentials: "include",
-            });
-
-            if (!response.ok) {
-                throw new Error("Failed to get get temp token");
-            }
-            return (await response.json()).token;
+            return await getTempToken(this.tabID);
         },
 
         /**
@@ -564,22 +555,7 @@ export default defineComponent({
                     reject(new Error("Container element not found"));
                 }
 
-                let displayResources = {
-                    tablatureFont: "bold 14px Arial",
-                    barNumberColor: "#6D6D6D",
-                };
-
-                if (this.setting.scoreColor === "dark") {
-                    displayResources = {
-                        ...displayResources,
-                        staffLineColor: "#6D6D6D",
-                        barSeparatorColor: "#6D6D6D",
-                        mainGlyphColor: "#A4A4A4",
-                        secondaryGlyphColor: "#A4A4A4",
-                        scoreInfoColor: "#A3A3A3",
-                        barNumberColor: "#6D6D6D",
-                    };
-                }
+                const displayResources = buildDisplayResources(this.setting);
 
                 let layoutMode = undefined;
 
@@ -1217,15 +1193,7 @@ export default defineComponent({
         },
 
         getStaveProfile() {
-            if (this.setting.scoreStyle === "tab" || this.setting.scoreStyle === "horizontal-tab") {
-                return StaveProfile.Tab;
-            } else if (this.setting.scoreStyle === "score") {
-                return StaveProfile.Score;
-            } else if (this.setting.scoreStyle === "score-tab") {
-                return StaveProfile.ScoreTab;
-            } else {
-                return StaveProfile.Default;
-            }
+            return getStaveProfile(this.setting);
         },
 
         async audioSynth() {
@@ -1605,7 +1573,8 @@ $youtube-height: 200px;
         background-color: #f1f1f1;
         padding-top: 30px;
 
-        h1, h2 {
+        h1,
+        h2 {
             color: #333;
         }
     }
@@ -1651,7 +1620,8 @@ $youtube-height: 200px;
             text-align: right;
         }
 
-        .button, .btn {
+        .button,
+        .btn {
             height: 44px;
             white-space: nowrap;
         }
