@@ -231,7 +231,17 @@ Press **?** at any time in the editor to open the shortcut list. On macOS, use *
 
 ### Fret entry
 
-Type **0–9** to enter a fret number. Two digits typed in quick succession combine (e.g. **1** then **2** → fret 12). Press **Esc** to cancel a pending digit.
+Type **0–9** on the main keyboard or the **numeric keypad** (with **NumLock on**) to enter a fret on the current string. Two digits typed in quick succession combine (e.g. **1** then **2** → fret 12). Press **Esc** to cancel a pending digit.
+
+**Guitar Pro–style workflow** for filling in a bar string by string:
+
+1. Move to a beat with **←** / **→** (or click the tab).
+2. Type a fret number on the current string.
+3. Press **↑** / **↓** to move to another string **on the same beat** (chords / multi-string notes).
+4. Type the next fret and repeat.
+5. Press **→** to advance to the next beat.
+
+With **NumLock off**, the numpad acts as navigation instead of digits (same as Guitar Pro): **2/4/6/8** move between strings and beats, **0** inserts a beat, **.** deletes a note, **+** / **−** change duration.
 
 ### Playback
 

@@ -26,10 +26,30 @@ for (let i = 0; i <= 9; i++) {
 
 /**
  * With NumLock off, numpad keys report e.code "NumpadN" but e.key becomes a
- * control key ("Insert", "ArrowLeft", ...). Those must act as the control key,
- * not as a digit.
+ * navigation/control key ("Insert", "ArrowLeft", "PageUp", ...). Those must act
+ * as the control key, not as a digit. (Guitar Pro: enable NumLock to enter
+ * frets on the numpad; NumLock off uses the pad for navigation.)
  */
-const NUMPAD_CONTROL_KEYS = new Set(["Insert", "Delete", "Home", "End", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown"]);
+const NUMPAD_CONTROL_KEYS = new Set([
+    "Insert",
+    "Delete",
+    "Home",
+    "End",
+    "Clear",
+    "ArrowLeft",
+    "ArrowRight",
+    "ArrowUp",
+    "ArrowDown",
+    "PageUp",
+    "PageDown",
+]);
+
+/** Numpad keys that always map to punctuation commands (+, -, .) regardless of NumLock. */
+const NUMPAD_PUNCTUATION: Record<string, string> = {
+    NumpadAdd: "+",
+    NumpadSubtract: "-",
+    NumpadDecimal: ".",
+};
 
 export class KeyboardController {
     /** When true (e.g. a modal is open), only Escape is handled. */
@@ -68,6 +88,18 @@ export class KeyboardController {
             return false;
         }
 
+        // Numpad +/-/decimal adjust rhythm when NumLock emits the character (GP pad shortcuts).
+        const punctKey = NUMPAD_PUNCTUATION[e.code];
+        if (punctKey !== undefined && e.key === punctKey && !e.ctrlKey && !e.altKey) {
+            const binding = matchBinding({ code: e.code, key: punctKey, ctrlKey: e.ctrlKey, shiftKey: e.shiftKey, altKey: e.altKey });
+            if (binding) {
+                e.preventDefault();
+                this.clearFretBuffer();
+                this.dispatch(binding.command);
+                return true;
+            }
+        }
+
         // NumLock off: numpad keys follow their control meaning (Insert/arrows/...)
         let lookup: Pick<KeyboardEvent, "code" | "key" | "ctrlKey" | "shiftKey" | "altKey"> = e;
         const numpadControl = e.code.startsWith("Numpad") && NUMPAD_CONTROL_KEYS.has(e.key);
@@ -75,11 +107,13 @@ export class KeyboardController {
             lookup = { code: e.key, key: e.key, ctrlKey: e.ctrlKey, shiftKey: e.shiftKey, altKey: e.altKey };
         }
 
-        // Fret entry
+        // Fret entry — top-row digits and numpad digits (NumLock on).
         const digit = DIGIT_CODES[e.code];
-        if (digit !== undefined && !numpadControl && !e.ctrlKey && !e.altKey) {
+        const digitKey = e.key.length === 1 && e.key >= "0" && e.key <= "9" ? parseInt(e.key) : NaN;
+        const isNumpadDigit = e.code.startsWith("Numpad") && !Number.isNaN(digitKey) && !numpadControl;
+        if ((digit !== undefined || isNumpadDigit) && !numpadControl && !e.ctrlKey && !e.altKey) {
             e.preventDefault();
-            this.enterDigit(digit);
+            this.enterDigit(digit ?? digitKey);
             return true;
         }
 

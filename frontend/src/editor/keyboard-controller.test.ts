@@ -102,6 +102,22 @@ describe("KeyboardController", () => {
         expect(dispatched).toEqual([{ command: "setFret", arg: 7 }]);
     });
 
+    it("enters frets on each string of the same beat via numpad + arrow navigation", () => {
+        kb.handleKeydown(keyEvent({ code: "Numpad3", key: "3" }));
+        kb.handleKeydown(keyEvent({ code: "ArrowDown" }));
+        kb.handleKeydown(keyEvent({ code: "Numpad5", key: "5" }));
+        kb.handleKeydown(keyEvent({ code: "ArrowDown" }));
+        kb.handleKeydown(keyEvent({ code: "Numpad0", key: "0" }));
+        expect(dispatched.map((d) => d.command)).toEqual([
+            "setFret",
+            "stringDown",
+            "setFret",
+            "stringDown",
+            "setFret",
+        ]);
+        expect(dispatched.map((d) => d.arg)).toEqual([3, undefined, 5, undefined, 0]);
+    });
+
     it("routes NumLock-off numpad keys to their control meaning", () => {
         // Numpad0 with NumLock off produces key "Insert" -> insert beat, NOT fret 0
         expect(kb.handleKeydown(keyEvent({ code: "Numpad0", key: "Insert" }))).toBe(true);
@@ -113,6 +129,9 @@ describe("KeyboardController", () => {
         // Numpad7 -> Home, Numpad1 -> End
         expect(kb.handleKeydown(keyEvent({ code: "Numpad7", key: "Home" }))).toBe(true);
         expect(kb.handleKeydown(keyEvent({ code: "Numpad1", key: "End" }))).toBe(true);
+        // Numpad9 -> PageUp, Numpad3 -> PageDown (must not enter frets)
+        expect(kb.handleKeydown(keyEvent({ code: "Numpad9", key: "PageUp" }))).toBe(false);
+        expect(kb.handleKeydown(keyEvent({ code: "Numpad3", key: "PageDown" }))).toBe(false);
 
         expect(dispatched.map((d) => d.command)).toEqual([
             "insertBeat",

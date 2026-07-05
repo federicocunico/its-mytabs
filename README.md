@@ -87,11 +87,16 @@ Requirements:
 - Git
 
 ```bash
-git clone https://github.com/louislam/its-mytabs.git
-cd its-mytabs
+# Install Deno from https://deno.land/, then:
+make dev    # install deps, build frontend, start backend + Vite concurrently
+make build  # install deps + production frontend build
+```
 
-# Check out the latest version from Release page
-git checkout 1.X.X --force
+**Dev URLs:** backend `http://localhost:47777` · Vite HMR `http://localhost:5173`. Stop Docker or anything else on port 47777 before `make dev`.
+
+Or for production:
+
+```bash
 deno task setup
 deno task start
 ```
@@ -170,16 +175,21 @@ Reddit post: https://www.reddit.com/r/selfhosted/comments/1nuisjc/i_built_a_self
 
 ## Development
 
-- Install Deno from https://deno.land/
-- Install dependencies:
+- Install [Deno](https://deno.land/) 2.4.4+
+- Install [make](https://www.gnu.org/software/make/) (optional; Git for Windows includes it)
 
 ```bash
-# Install backend dependencies
-deno install
+make dev    # install deps, build frontend, start backend + Vite concurrently
+make build  # install deps + production frontend build
+```
 
-# Install frontend dependencies
+**Dev URLs:** backend `http://localhost:47777` · Vite HMR `http://localhost:5173` (use the Vite URL while developing). Stop Docker or anything else on port 47777 before `make dev`.
+
+Or with deno tasks:
+
+```bash
+deno install
 cd frontend && deno install
-cd ..
 
 # Start development server (Hot Reload enabled)
 deno task dev

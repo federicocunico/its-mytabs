@@ -49,6 +49,22 @@ describe("EditorController", () => {
         expect(host.renders).toBe(1);
     });
 
+    it("enters notes on multiple strings at the same beat (GP-style line editing)", () => {
+        const beat = ctrl.score.tracks[0].staves[0].bars[0].voices[0].beats[0];
+        const topString = ctrl.cursor.pos.string;
+
+        ctrl.setFretAtCursor(3);
+        ctrl.moveStringDown();
+        ctrl.setFretAtCursor(5);
+        ctrl.moveStringDown();
+        ctrl.setFretAtCursor(0);
+
+        expect(beat.getNoteOnString(topString)!.fret).toBe(3);
+        expect(beat.getNoteOnString(topString - 1)!.fret).toBe(5);
+        expect(beat.getNoteOnString(topString - 2)!.fret).toBe(0);
+        expect(beat.notes.length).toBe(3);
+    });
+
     it("rejects invalid input without consuming undo history", () => {
         const result = ctrl.setFretAtCursor(99);
         expect(result.ok).toBe(false);

@@ -1,0 +1,47 @@
+[ 8454309ms] InvalidStateError: Failed to execute 'stop' on 'AudioScheduledSourceNode': cannot call stop without calling start first.
+    at Jl.pause (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:10:49104)
+    at Jl.pause (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:10:52525)
+    at ma.handleWorkerMessage (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:12:13881)
+[ 8455771ms] [ERROR] [AlphaTab][WebAudio] Audio Worklet creation failed: reason=AbortError: Unable to load a worklet's module. @ http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:0
+[ 8464842ms] InvalidStateError: Failed to execute 'stop' on 'AudioScheduledSourceNode': cannot call stop without calling start first.
+    at Jl.pause (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:10:49104)
+    at Jl.pause (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:10:52525)
+    at ma.handleWorkerMessage (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:12:13881)
+[ 8464849ms] [ERROR] [AlphaTab][WebAudio] Audio Worklet creation failed: reason=AbortError: Unable to load a worklet's module. @ http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:0
+[ 8468876ms] InvalidStateError: Failed to execute 'stop' on 'AudioScheduledSourceNode': cannot call stop without calling start first.
+    at Jl.pause (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:10:49104)
+    at Jl.pause (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:10:52525)
+    at ma.handleWorkerMessage (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:12:13881)
+[ 8469261ms] [ERROR] [AlphaTab][WebAudio] Audio Worklet creation failed: reason=AbortError: Unable to load a worklet's module. @ http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:0
+[ 8470354ms] InvalidStateError: Failed to execute 'stop' on 'AudioScheduledSourceNode': cannot call stop without calling start first.
+    at Jl.pause (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:10:49104)
+    at Jl.pause (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:10:52525)
+    at ma.handleWorkerMessage (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:12:13881)
+[ 8470716ms] [ERROR] [AlphaTab][WebAudio] Audio Worklet creation failed: reason=AbortError: Unable to load a worklet's module. @ http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:0
+[ 8471090ms] InvalidStateError: Failed to execute 'stop' on 'AudioScheduledSourceNode': cannot call stop without calling start first.
+    at Jl.pause (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:10:49104)
+    at Jl.pause (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:10:52525)
+    at ma.handleWorkerMessage (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:12:13881)
+[ 8473157ms] [ERROR] [AlphaTab][WebAudio] Audio Worklet creation failed: reason=AbortError: Unable to load a worklet's module. @ http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:0
+[ 8475491ms] InvalidStateError: Failed to execute 'stop' on 'AudioScheduledSourceNode': cannot call stop without calling start first.
+    at Jl.pause (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:10:49104)
+    at Jl.pause (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:10:52525)
+    at ma.handleWorkerMessage (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:12:13881)
+[ 8477157ms] InvalidStateError: Failed to execute 'stop' on 'AudioScheduledSourceNode': cannot call stop without calling start first.
+    at Jl.pause (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:10:49104)
+    at Jl.pause (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:10:52525)
+    at ma.handleWorkerMessage (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:12:13881)
+[ 8477159ms] [ERROR] [AlphaTab][WebAudio] Audio Worklet creation failed: reason=AbortError: Unable to load a worklet's module. @ http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:0
+[ 8481172ms] InvalidStateError: Failed to execute 'stop' on 'AudioScheduledSourceNode': cannot call stop without calling start first.
+    at Jl.pause (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:10:49104)
+    at Jl.pause (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:10:52525)
+    at ma.handleWorkerMessage (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:12:13881)
+[ 8493672ms] InvalidStateError: Failed to execute 'stop' on 'AudioScheduledSourceNode': cannot call stop without calling start first.
+    at Jl.pause (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:10:49104)
+    at Jl.pause (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:10:52525)
+    at ma.handleWorkerMessage (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:12:13881)
+[ 8493676ms] [ERROR] [AlphaTab][WebAudio] Audio Worklet creation failed: reason=AbortError: Unable to load a worklet's module. @ http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:0
+[ 8494337ms] InvalidStateError: Failed to execute 'stop' on 'AudioScheduledSourceNode': cannot call stop without calling start first.
+    at Jl.pause (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:10:49104)
+    at Jl.pause (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:10:52525)
+    at ma.handleWorkerMessage (http://localhost:47778/assets/alphaTab-BzZ4Et2f.js:12:13881)

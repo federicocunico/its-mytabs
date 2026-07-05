@@ -15,9 +15,10 @@
         "mpchc-controller": "deno run --allow-all extra/mpchc-controller.ts",
 
         // Dev
-        "dev": "deno task build-frontend && deno run -A npm:concurrently -k -r \"deno run -A npm:wait-on tcp:47777 && deno task frontend-dev\" \"deno task backend-dev\"",
+        "dev": "deno task build-frontend && deno task dev-server",
+        "dev-server": "deno run -A npm:concurrently -k -n backend,frontend -c blue,green \"deno task backend-dev\" \"deno run -A npm:wait-on tcp:127.0.0.1:47777 && deno task frontend-dev\"",
         "frontend-dev": "cd frontend && deno run dev-frontend",
-        "backend-dev": "NODE_ENV=development deno run --allow-all --watch backend/main.ts",
+        "backend-dev": "deno run --allow-all --env-file=.env.development --watch backend/main.ts",
         "install-frontend-deps": "cd frontend && deno install",
         "test": "deno test --allow-all",
         "test-frontend": "cd frontend && deno run -A npm:vitest run",

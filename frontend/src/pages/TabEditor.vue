@@ -954,7 +954,7 @@ export default defineComponent({
                         </tbody>
                     </table>
                 </div>
-                <p class="text-muted">Type digits to enter frets — two digits within a moment combine (1, 2 → 12).</p>
+                <p class="text-muted">Type digits (0–9) or numpad digits (NumLock on) to enter frets — two digits within a moment combine (1, 2 → 12). Use ↑/↓ to move between strings on the same beat.</p>
             </div>
         </BModal>
     </div>

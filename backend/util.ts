@@ -39,7 +39,7 @@ export async function getTabDir() {
 export const tabDir = await getTabDir();
 
 export function isDev() {
-    return process.env.NODE_ENV === "development";
+    return Deno.env.get("NODE_ENV") === "development" || process.env.NODE_ENV === "development";
 }
 
 export const devOriginList = [

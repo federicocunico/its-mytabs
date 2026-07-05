@@ -2,7 +2,7 @@
     "name": "its-mytabs-frontend",
     "type": "module",
     "scripts": {
-        "dev-frontend": "NODE_ENV=development vite",
+        "dev-frontend": "vite",
         "dev": "cd .. && deno task dev",
         "build": "vite build",
         "preview": "vite preview"
