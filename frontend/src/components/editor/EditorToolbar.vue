@@ -58,6 +58,23 @@ export default defineComponent({
                 <button class="btn btn-secondary" title="Insert bar before (Ctrl+Ins)" :disabled="state.playing" @click='command("insertBar")'>+Bar</button>
                 <button class="btn btn-secondary" title="Delete bar (Ctrl+Del)" :disabled="state.playing" @click='command("deleteBar")'>−Bar</button>
                 <button class="btn btn-secondary" title="Insert beat (Ins)" :disabled="state.playing" @click='command("insertBeat")'>+Beat</button>
+                <button class="btn btn-secondary" title="Bar settings: time signature, tempo, key, repeats, section" :disabled="state.playing" @click='command("barSettings")'>Bar…</button>
+            </div>
+
+            <button class="btn btn-sm btn-secondary" :title="`Tracks (editing: ${trackName})`" :disabled="state.playing" @click='command("trackManager")'>Tracks…</button>
+
+            <div class="btn-group btn-group-sm" role="group" v-if="state.voiceCount > 1">
+                <button
+                    v-for="v in state.voiceCount"
+                    :key="v"
+                    class="btn btn-secondary"
+                    :class="{ active: state.voiceIndex === v - 1 }"
+                    :title="`Edit voice ${v}`"
+                    :disabled="state.playing"
+                    @click='command("setVoice", v - 1)'
+                >
+                    V{{ v }}
+                </button>
             </div>
 
             <button class="btn btn-sm btn-primary" @click='command("playPause")'>

@@ -15,6 +15,7 @@ import { removeNoteOnString, setNoteFret, toggleTie } from "./mutations/note.ts"
 import { applyBeatData, type BeatData, deleteBeat, insertBeatAt, makeRest, serializeBeat, setBeatDots, setBeatDuration } from "./mutations/beat.ts";
 import { appendBar, deleteBar, insertBar } from "./mutations/bar.ts";
 import { type BeatEffect, type NoteEffect, setBeatEffect, setNoteEffect } from "./mutations/effects.ts";
+import { addTrack, removeTrack, setKeySignature, setRepeat, setSection, setStaffTuning, setTempo, setTimeSignature, setTripletFeel, type TrackTemplate } from "./mutations/structure.ts";
 
 type Score = alphaTab.model.Score;
 type Settings = alphaTab.Settings;
@@ -91,10 +92,13 @@ export class EditorController {
 
     /**
      * Run one undoable edit.
-     * @param structural bar-level edits invalidate object identity: the score
-     *   is rebuilt through the serializer and the host must swap instances.
+     * @param opts.structural the edit invalidates object identity: the score is
+     *   rebuilt through the serializer and the host must swap instances.
+     * @param opts.skipNormalize bar splices leave stale indices/links behind and
+     *   running finish() on that graph would crash — skip straight to the rebuild
+     *   (which re-runs the whole importer pipeline on a clean graph).
      */
-    private transact(fn: (touched: Set<Bar>) => void, structural = false): CommandResult {
+    private transact(fn: (touched: Set<Bar>) => void, opts: { structural?: boolean; skipNormalize?: boolean } = {}): CommandResult {
         if (!this.attached) {
             return { ok: false, message: "Editor not attached" };
         }
@@ -111,14 +115,11 @@ export class EditorController {
             throw e;
         }
 
-        if (structural) {
-            // Bar splices leave stale indices/links behind; running finish() on
-            // that graph would crash. Rebuild through the serializer instead —
-            // the importer pipeline recomputes everything on a clean graph.
-            this.barWarnings = [];
+        this.barWarnings = opts.skipNormalize ? [] : normalizeScore(this.score, this.settings, touched);
+
+        if (opts.structural) {
             this.replaceScore(rebuildScore(this.score, this.settings));
         } else {
-            this.barWarnings = normalizeScore(this.score, this.settings, touched);
             this.host.requestRender();
         }
 
@@ -245,21 +246,126 @@ export class EditorController {
     insertBarAtCursor(): CommandResult {
         return this.transact(() => {
             insertBar(this.score, this.cursor.pos.barIndex);
-        }, true);
+        }, { structural: true, skipNormalize: true });
     }
 
     appendBarAtEnd(): CommandResult {
         return this.transact(() => {
             appendBar(this.score);
-        }, true);
+        }, { structural: true, skipNormalize: true });
     }
 
     deleteBarAtCursor(): CommandResult {
         const result = this.transact(() => {
             deleteBar(this.score, this.cursor.pos.barIndex);
-        }, true);
+        }, { structural: true, skipNormalize: true });
         this.cursor.clamp();
         return result;
+    }
+
+    // ---- score structure (Phase 3) -------------------------------------------
+
+    /** Bars of every track at the given masterbar indices (for re-padding after capacity changes). */
+    private barsAt(indices: number[]): Bar[] {
+        const bars: Bar[] = [];
+        for (const track of this.score.tracks) {
+            for (const staff of track.staves) {
+                for (const i of indices) {
+                    if (staff.bars[i]) {
+                        bars.push(staff.bars[i]);
+                    }
+                }
+            }
+        }
+        return bars;
+    }
+
+    setTimeSignatureAtCursor(numerator: number, denominator: number, applyToFollowing: boolean): CommandResult {
+        return this.transact((touched) => {
+            const from = this.cursor.pos.barIndex;
+            setTimeSignature(this.score, from, numerator, denominator, applyToFollowing);
+            const affected = applyToFollowing ? Array.from({ length: this.score.masterBars.length - from }, (_, i) => from + i) : [from];
+            for (const bar of this.barsAt(affected)) {
+                touched.add(bar);
+            }
+        }, { structural: true });
+    }
+
+    setTempoAtCursor(bpm: number): CommandResult {
+        return this.transact(() => {
+            setTempo(this.score.masterBars[this.cursor.pos.barIndex], bpm);
+        }, { structural: true });
+    }
+
+    setKeySignatureAtCursor(key: alphaTab.model.KeySignature, type: alphaTab.model.KeySignatureType, applyToFollowing: boolean): CommandResult {
+        return this.transact(() => {
+            setKeySignature(this.score, this.cursor.pos.barIndex, key, type, applyToFollowing);
+        }, { structural: true });
+    }
+
+    setRepeatAtCursor(opts: { start?: boolean; count?: number; alternateEndings?: number }): CommandResult {
+        return this.transact(() => {
+            setRepeat(this.score, this.cursor.pos.barIndex, opts);
+        }, { structural: true });
+    }
+
+    setSectionAtCursor(text: string | null): CommandResult {
+        return this.transact(() => {
+            setSection(this.score.masterBars[this.cursor.pos.barIndex], text);
+        }, { structural: true });
+    }
+
+    setTripletFeelAtCursor(feel: alphaTab.model.TripletFeel): CommandResult {
+        return this.transact(() => {
+            setTripletFeel(this.score.masterBars[this.cursor.pos.barIndex], feel);
+        }, { structural: true });
+    }
+
+    // ---- tracks ---------------------------------------------------------------
+
+    addTrackToScore(template: TrackTemplate): CommandResult {
+        return this.transact(() => {
+            addTrack(this.score, template);
+        }, { structural: true, skipNormalize: true });
+    }
+
+    removeTrackFromScore(trackIndex: number): CommandResult {
+        const result = this.transact(() => {
+            removeTrack(this.score, trackIndex);
+        }, { structural: true, skipNormalize: true });
+        if (result.ok && this.cursor.trackIndex >= this.score.tracks.length) {
+            this.changeTrack(0);
+        }
+        return result;
+    }
+
+    setTuningForCurrentTrack(tuning: number[], capo: number): CommandResult {
+        return this.transact(() => {
+            const staff = this.score.tracks[this.cursor.trackIndex]?.staves[this.cursor.staffIndex];
+            if (!staff) {
+                throw new EditorValidationError("No staff at cursor");
+            }
+            setStaffTuning(staff, tuning, capo);
+        }, { structural: true });
+    }
+
+    /** Switch the edited track; the host re-renders via onScoreReplaced. */
+    changeTrack(trackIndex: number): void {
+        if (trackIndex < 0 || trackIndex >= this.score.tracks.length) {
+            return;
+        }
+        this.cursor.trackIndex = trackIndex;
+        this.cursor.staffIndex = 0;
+        this.cursor.clamp();
+        this.host.onScoreReplaced(this.score);
+        this.host.onStateChanged();
+    }
+
+    /** Switch the edited voice within the current bar (GP voice slots). */
+    setVoice(voiceIndex: number): void {
+        this.cursor.pos.voiceIndex = voiceIndex;
+        this.cursor.clamp();
+        this.host.onStateChanged();
     }
 
     // ---- effects (Phase 2) --------------------------------------------------

@@ -207,6 +207,39 @@ describe("EditorController", () => {
         expect(walkBeatChain(ctrl.score)).toEqual(["3", "7", "5", "3", "3", "5"]);
     });
 
+    it("changes the time signature at the cursor and pads/warns bars", () => {
+        const result = ctrl.setTimeSignatureAtCursor(3, 4, false);
+        expect(result.ok).toBe(true);
+        expect(ctrl.score.masterBars[0].timeSignatureNumerator).toBe(3);
+        // the 4/4-full bar is over-full in 3/4
+        expect(ctrl.barWarnings).toEqual([{ trackIndex: 0, barIndex: 0, kind: "overflow" }]);
+        ctrl.undo();
+        expect(ctrl.score.masterBars[0].timeSignatureNumerator).toBe(4);
+    });
+
+    it("sets tempo and section at the cursor", () => {
+        expect(ctrl.setTempoAtCursor(150).ok).toBe(true);
+        expect(ctrl.score.masterBars[0].tempoAutomations[0].value).toBe(150);
+
+        expect(ctrl.setSectionAtCursor("Intro").ok).toBe(true);
+        expect(ctrl.score.masterBars[0].section!.text).toBe("Intro");
+    });
+
+    it("adds, switches to and removes a track", () => {
+        const result = ctrl.addTrackToScore({ name: "Bass", tuning: [43, 38, 33, 28], program: 33 });
+        expect(result.ok).toBe(true);
+        expect(ctrl.score.tracks.length).toBe(2);
+
+        ctrl.changeTrack(1);
+        expect(ctrl.cursor.trackIndex).toBe(1);
+        ctrl.setFretAtCursor(3);
+        expect(ctrl.score.tracks[1].staves[0].bars[0].voices[0].beats[0].notes.length).toBe(1);
+
+        ctrl.removeTrackFromScore(1);
+        expect(ctrl.score.tracks.length).toBe(1);
+        expect(ctrl.cursor.trackIndex).toBe(0);
+    });
+
     it("exports the edited score as GP bytes", () => {
         ctrl.cursor.pos.string = 4;
         ctrl.setFretAtCursor(12);

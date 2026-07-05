@@ -12,6 +12,8 @@ import EditorToolbar from "../components/editor/EditorToolbar.vue";
 import EditorStatusBar from "../components/editor/EditorStatusBar.vue";
 import EffectsPalette from "../components/editor/EffectsPalette.vue";
 import BendDialog from "../components/editor/BendDialog.vue";
+import BarSettingsDialog from "../components/editor/BarSettingsDialog.vue";
+import TrackManagerDialog from "../components/editor/TrackManagerDialog.vue";
 
 const alphaTab = await import("@coderline/alphatab");
 
@@ -28,7 +30,7 @@ const DURATION_LABELS = {
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
 export default defineComponent({
-    components: { EditorToolbar, EditorStatusBar, EffectsPalette, BendDialog, BModal },
+    components: { EditorToolbar, EditorStatusBar, EffectsPalette, BendDialog, BarSettingsDialog, TrackManagerDialog, BModal },
 
     /** @type {alphaTab.AlphaTabApi} */
     api: null,
@@ -54,6 +56,10 @@ export default defineComponent({
             midiDirty: false,
             showHelp: false,
             showBend: false,
+            showBarSettings: false,
+            showTracks: false,
+            barSettingsInitial: {},
+            trackList: [],
             fx: {
                 hammer: false,
                 palmMute: false,
@@ -84,6 +90,8 @@ export default defineComponent({
                 tie: false,
                 playing: false,
                 saving: false,
+                voiceCount: 1,
+                voiceIndex: 0,
             },
             status: {
                 barIndex: 0,
@@ -140,7 +148,7 @@ export default defineComponent({
         }
 
         this.kb = new KeyboardController((command, arg) => this.dispatch(command, arg));
-        this.kb.isBlocked = () => this.showHelp || this.showBend;
+        this.kb.isBlocked = () => this.showHelp || this.showBend || this.showBarSettings || this.showTracks;
         this._onKeydown = (e) => {
             this.kb.handleKeydown(e);
             // Reflect the fret buffer in the status bar
@@ -218,7 +226,8 @@ export default defineComponent({
             const host = {
                 requestRender: () => this.scheduleRender(),
                 onScoreReplaced: (score) => {
-                    this.api.renderScore(score, [this.trackIndex]);
+                    // the controller's cursor owns the authoritative track index
+                    this.api.renderScore(score, [this.ctrl.cursor.trackIndex]);
                 },
                 onStateChanged: () => this.refreshUi(),
             };
@@ -434,6 +443,15 @@ export default defineComponent({
                 case "trillDialog":
                     result = this.trillPrompt();
                     break;
+                case "barSettings":
+                    this.openBarSettings();
+                    break;
+                case "trackManager":
+                    this.openTrackManager();
+                    break;
+                case "setVoice":
+                    this.ctrl.setVoice(arg);
+                    break;
                 case "copyBeat":
                     result = this.ctrl.copyBeatAtCursor();
                     break;
@@ -491,6 +509,104 @@ export default defineComponent({
             }
         },
 
+        openBarSettings() {
+            const r = this.ctrl.cursor.resolve();
+            if (!r) {
+                return;
+            }
+            const masterBar = r.bar.masterBar;
+            this.barSettingsInitial = {
+                tsNumerator: masterBar.timeSignatureNumerator,
+                tsDenominator: masterBar.timeSignatureDenominator,
+                tsFollowing: false,
+                tempo: masterBar.tempoAutomations[0] ? Math.round(masterBar.tempoAutomations[0].value) : null,
+                key: r.bar.keySignature,
+                keyType: r.bar.keySignatureType,
+                repeatStart: masterBar.isRepeatStart,
+                repeatCount: masterBar.repeatCount,
+                tripletFeel: masterBar.tripletFeel,
+                section: masterBar.section ? masterBar.section.text : "",
+            };
+            this.showBarSettings = true;
+        },
+
+        applyBarSettings(form) {
+            const initial = form.initial;
+            const results = [];
+
+            if (form.tsNumerator !== initial.tsNumerator || form.tsDenominator !== initial.tsDenominator || form.tsFollowing) {
+                results.push(this.ctrl.setTimeSignatureAtCursor(form.tsNumerator, form.tsDenominator, form.tsFollowing));
+            }
+            if (form.tempo != null && form.tempo !== "" && form.tempo !== initial.tempo) {
+                results.push(this.ctrl.setTempoAtCursor(form.tempo));
+            }
+            if (form.key !== initial.key || form.keyType !== initial.keyType) {
+                results.push(this.ctrl.setKeySignatureAtCursor(form.key, form.keyType, false));
+            }
+            if (form.repeatStart !== initial.repeatStart || form.repeatCount !== initial.repeatCount) {
+                results.push(this.ctrl.setRepeatAtCursor({ start: form.repeatStart, count: form.repeatCount }));
+            }
+            if (form.tripletFeel !== initial.tripletFeel) {
+                results.push(this.ctrl.setTripletFeelAtCursor(form.tripletFeel));
+            }
+            if ((form.section ?? "") !== initial.section) {
+                results.push(this.ctrl.setSectionAtCursor(form.section || null));
+            }
+
+            for (const result of results) {
+                if (result && !result.ok && result.message) {
+                    notify({ type: "warn", text: result.message });
+                }
+            }
+        },
+
+        openTrackManager() {
+            this.trackList = this.ctrl.score.tracks.map((t) => ({
+                name: t.name,
+                strings: t.staves[0]?.tuning.length ?? 0,
+            }));
+            this.showTracks = true;
+        },
+
+        switchTrack(index) {
+            this.ctrl.changeTrack(index);
+            this.trackIndex = index;
+            this.trackName = this.ctrl.score.tracks[index].name;
+            this.showTracks = false;
+        },
+
+        addTrack(template) {
+            const result = this.ctrl.addTrackToScore(template);
+            if (!result.ok && result.message) {
+                notify({ type: "warn", text: result.message });
+                return;
+            }
+            this.switchTrack(this.ctrl.score.tracks.length - 1);
+        },
+
+        removeTrack(index) {
+            if (!window.confirm(`Remove track "${this.ctrl.score.tracks[index].name}" and all of its notes?`)) {
+                return;
+            }
+            const result = this.ctrl.removeTrackFromScore(index);
+            if (!result.ok && result.message) {
+                notify({ type: "warn", text: result.message });
+                return;
+            }
+            this.trackIndex = this.ctrl.cursor.trackIndex;
+            this.trackName = this.ctrl.score.tracks[this.trackIndex].name;
+            this.openTrackManager();
+        },
+
+        retune(payload) {
+            const result = this.ctrl.setTuningForCurrentTrack(payload.tuning, payload.capo);
+            if (!result.ok && result.message) {
+                notify({ type: "warn", text: result.message });
+            } else {
+                this.showTracks = false;
+            }
+        },
+
         deleteBarWithConfirm() {
             const r = this.ctrl.cursor.resolve();
             if (r && !r.bar.isRestOnly) {
@@ -511,7 +627,7 @@ export default defineComponent({
             requestAnimationFrame(() => {
                 this.renderScheduled = false;
                 if (this.api && this.ctrl) {
-                    this.api.renderScore(this.ctrl.score, [this.trackIndex]);
+                    this.api.renderScore(this.ctrl.score, [this.ctrl.cursor.trackIndex]);
                 }
             });
         },
@@ -538,6 +654,8 @@ export default defineComponent({
                 this.ui.dots = r.beat.dots;
                 this.ui.isRest = r.beat.isRest;
                 this.ui.tie = r.note ? r.note.isTieDestination : false;
+                this.ui.voiceCount = r.bar.voices.length;
+                this.ui.voiceIndex = cursor.pos.voiceIndex;
                 this.status.durationLabel = DURATION_LABELS[r.beat.duration] ?? String(r.beat.duration);
                 this.status.dots = r.beat.dots;
                 this.status.isRest = r.beat.isRest;
@@ -764,6 +882,16 @@ export default defineComponent({
         <EditorStatusBar :info="status" v-if="ready" />
 
         <BendDialog v-model="showBend" @apply="applyBendPreset" />
+        <BarSettingsDialog v-model="showBarSettings" :initial="barSettingsInitial" @apply="applyBarSettings" />
+        <TrackManagerDialog
+            v-model="showTracks"
+            :tracks="trackList"
+            :currentIndex="trackIndex"
+            @switchTrack="switchTrack"
+            @addTrack="addTrack"
+            @removeTrack="removeTrack"
+            @retune="retune"
+        />
 
         <BModal v-model="showHelp" title="Keyboard shortcuts" size="lg" ok-only>
             <div class="shortcuts">

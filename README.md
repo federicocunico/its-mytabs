@@ -140,6 +140,9 @@ Tab Player Keyboard Shortcuts:
 Open the editor with the **Edit Score** button on the player page, or create a blank tab from the **New Tab** page. The editor saves in Guitar Pro (`.gp`) format; editing a
 `.gp3`/`.gp4`/`.gp5`/`.gpx`/MusicXML tab converts it to `.gp` on first save (a timestamped backup of the previous file is kept on the server, up to 10).
 
+The **Bar…** toolbar button edits the current bar's time signature, tempo, key signature, repeats, triplet feel and section name. The **Tracks…** button switches the edited track, adds/removes tracks
+(guitar/bass presets) and re-tunes the current track. When a bar has multiple voices, voice buttons (V1/V2/…) appear in the toolbar.
+
 Editor Keyboard Shortcuts:
 
 | Key                  | Description                                                |
