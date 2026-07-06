@@ -52,6 +52,7 @@ export default defineComponent({
             isLooping: false,
             speed: 100,
             ready: false,
+            playerReady: false,
             selectedTrack: 0,
             soloTrackID: -1,
             muteTrackList: {},
@@ -191,7 +192,11 @@ export default defineComponent({
             if (this.playing) {
                 this.api.settings.player.scrollMode = this.scrollMode;
                 this.api.updateSettings();
-                this.api.play();
+                if (!this.api.play()) {
+                    this.playing = false;
+                    notify({ text: "Playback could not start — the audio player is not ready.", type: "warn" });
+                    return;
+                }
                 requestWakeLock();
             } else {
                 this.api.pause();
@@ -449,6 +454,9 @@ export default defineComponent({
             if (!this.api || !this.ready) {
                 return;
             }
+            if (!this.playing && !this.canStartPlayback()) {
+                return;
+            }
 
             this.playing = !this.playing;
         },
@@ -457,7 +465,19 @@ export default defineComponent({
             if (!this.api || !this.ready) {
                 return;
             }
+            if (!this.canStartPlayback()) {
+                return;
+            }
             this.playing = true;
+        },
+
+        /** Synth playback needs the soundfont/worklet loaded; warn instead of failing silently. */
+        canStartPlayback() {
+            if (this.currentAudio === "synth" && !this.playerReady) {
+                notify({ text: "The audio player is still loading — try again in a moment.", type: "warn" });
+                return false;
+            }
+            return true;
         },
 
         pause() {
@@ -531,7 +551,7 @@ export default defineComponent({
 
             if (targetBar) {
                 const firstBeat = targetBar.voices[0].beats[0];
-                api.tickPosition = firstBeat.absoluteDisplayStart;
+                this.api.tickPosition = firstBeat.absoluteDisplayStart;
             }
 
             this.play();
@@ -614,6 +634,17 @@ export default defineComponent({
                 // Exposing api to window for debugging
                 window.api = this.api;
 
+                // Surface player/render errors instead of silent console spam
+                // (e.g. a failed audio-worklet or soundfont load).
+                this.playerReady = false;
+                this.api.error.on((error) => {
+                    console.error("[alphaTab]", error);
+                    generalError(error instanceof Error ? error : new Error(String(error)));
+                });
+                this.api.playerReady.on(() => {
+                    this.playerReady = true;
+                });
+
                 // Used for showing/hiding the "Restart" button
                 this.api.playbackRangeChanged.on(() => {
                     this.playbackRange = this.api.playbackRange;
@@ -641,8 +672,8 @@ export default defineComponent({
                     this.api.renderTracks([this.api.score.tracks[trackID]]);
 
                     // Always show tempo automation on the master bar
-                    if (api.score.masterBars.length > 0 && api.score.masterBars[0].tempoAutomations.length > 0) {
-                        api.score.masterBars[0].tempoAutomations[0].isVisible = true;
+                    if (this.api.score.masterBars.length > 0 && this.api.score.masterBars[0].tempoAutomations.length > 0) {
+                        this.api.score.masterBars[0].tempoAutomations[0].isVisible = true;
                     }
 
                     // Get key signature

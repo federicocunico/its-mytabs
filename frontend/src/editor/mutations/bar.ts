@@ -22,6 +22,18 @@ export function insertBar(score: Score, index: number): void {
     masterBar.timeSignatureDenominator = reference.timeSignatureDenominator;
     masterBar.timeSignatureCommon = reference.timeSignatureCommon;
     masterBar.tripletFeel = reference.tripletFeel;
+
+    // Inserting before bar 0: the song-start tempo automation lives on the old
+    // first bar. It must move to the new first bar, or export falls back to the
+    // default tempo and the song starts at the wrong speed.
+    if (index === 0) {
+        const startTempo = reference.tempoAutomations.findIndex((a) => a.ratioPosition === 0);
+        if (startTempo >= 0) {
+            masterBar.tempoAutomations.push(reference.tempoAutomations[startTempo]);
+            reference.tempoAutomations.splice(startTempo, 1);
+        }
+    }
+
     score.masterBars.splice(index, 0, masterBar);
     masterBar.score = score;
 
@@ -67,6 +79,18 @@ export function deleteBar(score: Score, index: number): void {
     }
     if (index < 0 || index >= score.masterBars.length) {
         throw new EditorValidationError(`Invalid bar index ${index}`);
+    }
+
+    // Deleting bar 0: carry its song-start tempo over to the next bar unless
+    // that bar already sets its own tempo (an explicit change takes over).
+    if (index === 0) {
+        const removed = score.masterBars[0];
+        const next = score.masterBars[1];
+        const startTempo = removed.tempoAutomations.find((a) => a.ratioPosition === 0);
+        const nextHasOwn = next.tempoAutomations.some((a) => a.ratioPosition === 0);
+        if (startTempo && !nextHasOwn) {
+            next.tempoAutomations.unshift(startTempo);
+        }
     }
 
     score.masterBars.splice(index, 1);

@@ -17,15 +17,18 @@ export function connectSocketIO() {
 /**
  * Get the base URL
  * Mainly used for dev, because the backend and the frontend are in different ports.
+ * The backend port is configurable via VITE_BACKEND_PORT (frontend/.env.development,
+ * overridable per machine in the gitignored frontend/.env.development.local) so a
+ * dev backend can run on an alternative port when 47777 is taken (e.g. by a
+ * production Docker container).
  * @returns Base URL
  */
 export function getBaseURL(): string {
-    const env = process.env.NODE_ENV;
-    if (env === "development") {
-        return location.protocol + "//" + location.hostname + ":47777";
-    } else {
-        return "";
+    if (import.meta.env.DEV) {
+        const port = import.meta.env.VITE_BACKEND_PORT || "47777";
+        return `${location.protocol}//${location.hostname}:${port}`;
     }
+    return "";
 }
 
 export const baseURL = getBaseURL();

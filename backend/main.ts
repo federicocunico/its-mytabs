@@ -66,13 +66,21 @@ export async function main() {
         }
     }
 
-    // Read index.html content
-    const indexHTMLContent = await Deno.readTextFile(path.join(frontendDir, "index.html"));
+    // Read index.html and inject the demo mode flag using cheerio
+    const buildIndexHTML = async (): Promise<string> => {
+        const content = await Deno.readTextFile(path.join(frontendDir, "index.html"));
+        const $ = cheerio.load(content);
+        $("head").append(`<script id="app-config" type="application/json">${JSON.stringify({ isDemo: isDemoMode })}</script>`);
+        return $.html();
+    };
 
-    // Inject demo mode flag using cheerio
-    const $ = cheerio.load(indexHTMLContent);
-    $("head").append(`<script id="app-config" type="application/json">${JSON.stringify({ isDemo: isDemoMode })}</script>`);
-    const indexHTML = $.html();
+    // In production the file never changes, so cache it for the process
+    // lifetime. In dev re-read per request — a rebuilt dist/ served from a
+    // stale cache hands the browser dead hashed asset URLs (worklet AbortError).
+    const cachedIndexHTML = await buildIndexHTML();
+    const getIndexHTML = async (): Promise<string> => {
+        return isDev() ? await buildIndexHTML() : cachedIndexHTML;
+    };
 
     if (isDemoMode) {
         console.warn("Running in DEMO MODE.");
@@ -727,8 +735,8 @@ export async function main() {
         }
     });
 
-    app.get("/", (c) => {
-        return c.html(indexHTML);
+    app.get("/", async (c) => {
+        return c.html(await getIndexHTML());
     });
 
     // Serve static files
@@ -748,9 +756,18 @@ export async function main() {
         }, 404);
     });
 
-    // For SPA, always return index.html
-    app.notFound((c) => {
-        return c.html(indexHTML, 200);
+    // For SPA navigations, return index.html — but never for asset-like paths:
+    // a missing hashed chunk answered with HTML/200 makes the browser's audio
+    // worklet loader fail with "Unable to load a worklet's module" and kills
+    // playback until the real 404 is surfaced.
+    app.notFound(async (c) => {
+        const pathname = new URL(c.req.url).pathname;
+        const isAssetDir = /^\/(assets|font|soundfont)\//.test(pathname);
+        const hasFileExtension = /\.[A-Za-z0-9]+$/.test(pathname);
+        if (isAssetDir || hasFileExtension) {
+            return c.text("Not found", 404);
+        }
+        return c.html(await getIndexHTML(), 200);
     });
 
     const signalHandler = () => {

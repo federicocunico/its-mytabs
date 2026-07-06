@@ -5,6 +5,6 @@ export default defineConfig({
         // alphaTab's entry point requires `window` at import time, so the
         // engine tests run under a DOM shim even though they never render.
         environment: "happy-dom",
-        include: ["src/editor/**/*.test.ts"],
+        include: ["src/editor/**/*.test.ts", "src/playback/**/*.test.ts"],
     },
 });

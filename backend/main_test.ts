@@ -263,6 +263,28 @@ Deno.test({
     },
 });
 
+Deno.test({
+    name: "missing static assets return 404, SPA routes return HTML (HTTP)",
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        // A missing hashed asset must NOT silently return the SPA HTML with 200:
+        // the browser's audio-worklet loader treats the HTML body as a broken
+        // module and playback dies with "Unable to load a worklet's module".
+        for (const p of ["/assets/missing-chunk.js", "/font/missing.woff2", "/soundfont/missing.sf2", "/assets/deleted.css"]) {
+            const res = await fetch(baseURL + p);
+            assertEquals(res.status, 404, `expected 404 for ${p}`);
+            await res.body?.cancel();
+        }
+
+        // SPA navigation routes (no file extension) still get the app shell.
+        const res = await fetch(`${baseURL}/tab/12345`);
+        assertEquals(res.status, 200);
+        const text = await res.text();
+        assertEquals(text.includes("<html"), true);
+    },
+});
+
 Deno.test.afterAll(async () => {
     closeServer();
 
