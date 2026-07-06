@@ -26,25 +26,24 @@ export async function getTempToken(tabID: number | string): Promise<string> {
     return (await response.json()).token;
 }
 
-export function buildDisplayResources(setting: { scoreColor?: string }): Record<string, string> {
-    let displayResources: Record<string, string> = {
-        tablatureFont: "bold 14px Arial",
-        barNumberColor: "#6D6D6D",
+/**
+ * The Studio always renders the notation on a white sheet (a white card inside
+ * the dark score pane), so the display resources are forced to a legible
+ * black-on-white palette regardless of the user's `scoreColor` setting. The old
+ * dark/light full-page tint paths are retired — the sheet is white by definition.
+ *
+ * `_setting` is accepted for call-site compatibility but intentionally ignored.
+ */
+export function buildDisplayResources(_setting?: { scoreColor?: string }): Record<string, string> {
+    return {
+        tablatureFont: "bold 14px 'IBM Plex Mono', monospace",
+        mainGlyphColor: "#191d23", // notes / stems (near-black)
+        secondaryGlyphColor: "#4a5058",
+        staffLineColor: "#c9ccd1",
+        barSeparatorColor: "#b6bcc4",
+        barNumberColor: "#9aa0a8",
+        scoreInfoColor: "#22262b",
     };
-
-    if (setting.scoreColor === "dark") {
-        displayResources = {
-            ...displayResources,
-            staffLineColor: "#6D6D6D",
-            barSeparatorColor: "#6D6D6D",
-            mainGlyphColor: "#A4A4A4",
-            secondaryGlyphColor: "#A4A4A4",
-            scoreInfoColor: "#A3A3A3",
-            barNumberColor: "#6D6D6D",
-        };
-    }
-
-    return displayResources;
 }
 
 export function getStaveProfile(setting: { scoreStyle?: string }): alphaTab.StaveProfile {

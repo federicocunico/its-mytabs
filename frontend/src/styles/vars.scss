@@ -10,3 +10,35 @@ $border-radius: 3px;
 $form-check-input-bg: $dark1;
 $checkbox-border-color-dark: #b0c5d5;
 $form-check-input-border: var(--bs-border-width) solid #{$checkbox-border-color-dark};
+
+// ---------------------------------------------------------------------------
+// MyTabs Studio design tokens (Guitar-Pro-style shell).
+// Scoped with the `st-` prefix so they don't collide with Bootstrap's globals;
+// the studio components (shell/, studio/) opt into them explicitly.
+// ---------------------------------------------------------------------------
+$st-app-bg: #0d1015;
+$st-panel-bg: #14181e;
+$st-rail-bg: #12161b;
+$st-panel-2: #1b2027;
+$st-border: #242b33;
+$st-border-2: #2b333d;
+$st-score-bg: #191d23; // dark padding AROUND the white sheet
+$st-text: #c7ced7;
+$st-text-muted: #7c8794;
+$st-text-faint: #5f6b78;
+$st-accent: #5b6ef5; // indigo
+$st-play-green: #1f9d55;
+$st-playhead: #f4a52b;
+$st-mute-red: #d23b34;
+$st-solo-amber: #f4a52b;
+$st-radius: 8px;
+
+// Group-accent dots for the tool palette
+$st-accent-note: #5b6ef5; // note effects  (indigo)
+$st-accent-beatfx: #f4a52b; // beat effects  (amber)
+$st-accent-beat: #14b8a6; // beat ops      (teal)
+$st-accent-bar: #a855c9; // bar ops       (purple)
+
+$st-font-ui: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+$st-font-mono: "IBM Plex Mono", ui-monospace, monospace;
+$st-font-serif: "Spectral", Georgia, serif;

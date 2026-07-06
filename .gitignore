@@ -1,7 +1,7 @@
 .vscode
 .idea
 node_modules
-/data/
+/data/*
 /dist/
 /private/
 /*.exe
@@ -11,3 +11,5 @@ node_modules
 /e2e/playwright-report/
 /frontend/.env.development.local
 /.playwright-mcp/
+
+!/data/new_design
