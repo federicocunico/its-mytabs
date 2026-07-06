@@ -16,12 +16,15 @@
 
         // Dev
         "dev": "deno task build-frontend && deno task dev-server",
-        "dev-server": "deno run -A npm:concurrently -k -n backend,frontend -c blue,green \"deno task backend-dev\" \"deno run -A npm:wait-on tcp:127.0.0.1:47777 && deno task frontend-dev\"",
+        // Reads MYTABS_PORT (default 47777) and forwards it to Vite as VITE_BACKEND_PORT
+        "dev-server": "deno run -A extra/dev-server.ts",
         "frontend-dev": "cd frontend && deno run dev-frontend",
         "backend-dev": "deno run --allow-all --env-file=.env.development --watch backend/main.ts",
         "install-frontend-deps": "cd frontend && deno install",
         "test": "deno test --allow-all",
         "test-frontend": "cd frontend && deno run -A npm:vitest run",
+        "test-editor": "cd frontend && deno run -A npm:vitest run src/editor",
+        "test-playback": "cd frontend && deno run -A npm:vitest run src/playback",
         "fmt": "deno fmt && deno lint --fix && cd frontend && deno fmt",
         "check": "deno fmt --check && deno lint && deno check && cd frontend && deno fmt --check",
 
@@ -39,7 +42,9 @@
 
     "exclude": [
         "frontend",
-        "extra"
+        "extra",
+        "e2e",
+        ".playwright-mcp"
     ],
 
     // Run `deno fmt` to format your code

@@ -6,3 +6,8 @@ node_modules
 /private/
 /*.exe
 .env
+/e2e/.data/
+/e2e/test-results/
+/e2e/playwright-report/
+/frontend/.env.development.local
+/.playwright-mcp/

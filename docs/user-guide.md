@@ -45,14 +45,14 @@ Click the track name in the toolbar to open the track list. For each track you c
 
 ### Playback controls
 
-| Control | Description |
-| ------- | ----------- |
-| **Play / Pause** | Start or stop playback |
-| **Loop** | Repeat the current [highlighted range](#looping-and-practice-ranges) |
-| **Count in** | One-bar count-in before playback (synth only) |
-| **Metronome** | Click track during playback (synth only) |
-| **Speed** | Playback speed as a percentage (e.g. 75 = 75%) |
-| **Restart** | Appears when a range is highlighted — plays from the start of the selection |
+| Control          | Description                                                                 |
+| ---------------- | --------------------------------------------------------------------------- |
+| **Play / Pause** | Start or stop playback                                                      |
+| **Loop**         | Repeat the current [highlighted range](#looping-and-practice-ranges)        |
+| **Count in**     | One-bar count-in before playback (synth only)                               |
+| **Metronome**    | Click track during playback (synth only)                                    |
+| **Speed**        | Playback speed as a percentage (e.g. 75 = 75%)                              |
+| **Restart**      | Appears when a range is highlighted — plays from the start of the selection |
 
 ### Looping and practice ranges
 
@@ -68,13 +68,13 @@ If nothing is highlighted, **↑** and **S** jump to the first bar with notes (w
 
 Click **Audio** in the toolbar to choose:
 
-| Source | Description |
-| ------ | ----------- |
-| **Synth** | Built-in MIDI synthesizer — mute/solo individual tracks |
-| **Embedded Backing Track** | Backing track embedded in the Guitar Pro file (if present) |
-| **YouTube** | Synced YouTube video (add videos via **Details → Youtube & Audio files**) |
-| **Audio file** | Uploaded `.mp3`, `.ogg`, or `.flac` file |
-| **No Audio (Mute)** | Silence all audio |
+| Source                     | Description                                                               |
+| -------------------------- | ------------------------------------------------------------------------- |
+| **Synth**                  | Built-in MIDI synthesizer — mute/solo individual tracks                   |
+| **Embedded Backing Track** | Backing track embedded in the Guitar Pro file (if present)                |
+| **YouTube**                | Synced YouTube video (add videos via **Details → Youtube & Audio files**) |
+| **Audio file**             | Uploaded `.mp3`, `.ogg`, or `.flac` file                                  |
+| **No Audio (Mute)**        | Silence all audio                                                         |
 
 When YouTube or an audio file is active, a **Sync Offset** field appears below the player so you can fine-tune timing while listening (logged-in users only; changes are saved automatically).
 
@@ -105,11 +105,11 @@ For songs that drift or have tempo changes. Define sync points bar by bar using 
 \sync {Bar} {Occurrence} {Offset}
 ```
 
-| Field | Meaning |
-| ----- | ------- |
-| **Bar** | Bar index, starting at 0 |
+| Field          | Meaning                                   |
+| -------------- | ----------------------------------------- |
+| **Bar**        | Bar index, starting at 0                  |
 | **Occurrence** | Which time this bar appears (for repeats) |
-| **Offset** | Position in the audio, in milliseconds |
+| **Offset**     | Position in the audio, in milliseconds    |
 
 Example:
 
@@ -133,28 +133,28 @@ Open **Settings** from the navigation bar. Changes are saved to your browser aut
 
 ### Tab player
 
-| Setting | Options |
-| ------- | ------- |
-| **Style** | Tab, Score, Tab + Score, Horizontal Tab |
-| **Tab/Score Color** | Light, Dark |
-| **Display Scale** | 80% – 300% |
-| **Scroll** | Scroll, Off, Smooth Scroll (forced to Smooth for Horizontal Tab) |
-| **Show Key Signature** | Yes / No |
-| **Auto-hide bottom toolbar** | Yes / No |
+| Setting                      | Options                                                          |
+| ---------------------------- | ---------------------------------------------------------------- |
+| **Style**                    | Tab, Score, Tab + Score, Horizontal Tab                          |
+| **Tab/Score Color**          | Light, Dark                                                      |
+| **Display Scale**            | 80% – 300%                                                       |
+| **Scroll**                   | Scroll, Off, Smooth Scroll (forced to Smooth for Horizontal Tab) |
+| **Show Key Signature**       | Yes / No                                                         |
+| **Auto-hide bottom toolbar** | Yes / No                                                         |
 
 ### Assists
 
-| Setting | Options |
-| ------- | ------- |
-| **Note Color** | No Color, Rocksmith 2014, Louis' 5-string Bass |
+| Setting          | Options                                           |
+| ---------------- | ------------------------------------------------- |
+| **Note Color**   | No Color, Rocksmith 2014, Louis' 5-string Bass    |
 | **Cursor Style** | No Cursor, Cursor (Smooth), Cursor (Instant), Bar |
 
 **Cursor (Instant)** is useful for checking whether sync points are correct — any lag between cursor and audio is easy to spot.
 
 ### Tab list
 
-| Setting | Options |
-| ------- | ------- |
+| Setting                  | Options  |
+| ------------------------ | -------- |
 | **Group tabs by Artist** | Yes / No |
 
 ---
@@ -163,13 +163,13 @@ Open **Settings** from the navigation bar. Changes are saved to your browser aut
 
 Shortcuts work on the tab player page. They are ignored while focus is in a text input (e.g. the sync offset field).
 
-| Key | Action |
-| --- | ------ |
-| **Space** | Toggle play / pause |
-| **←** | Move to the previous bar |
-| **→** | Move to the next bar |
-| **↑** | Restart — play from the start of the highlighted range; if nothing is highlighted, play from the first bar with notes (−2 bar offset) |
-| **S** | Play from the first bar with notes (−2 bar offset) |
+| Key       | Action                                                                                                                                |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **Space** | Toggle play / pause                                                                                                                   |
+| **←**     | Move to the previous bar                                                                                                              |
+| **→**     | Move to the next bar                                                                                                                  |
+| **↑**     | Restart — play from the start of the highlighted range; if nothing is highlighted, play from the first bar with notes (−2 bar offset) |
+| **S**     | Play from the first bar with notes (−2 bar offset)                                                                                    |
 
 ---
 
@@ -177,23 +177,24 @@ Shortcuts work on the tab player page. They are ignored while focus is in a text
 
 Open the editor with **Edit Score** on the player page, or create a blank tab from **New Tab**.
 
-The editor saves in Guitar Pro (`.gp`) format. Editing a `.gp3` / `.gp4` / `.gp5` / `.gpx` / MusicXML tab converts it to `.gp` on first save. A timestamped backup of the previous file is kept on the server (up to 10 backups).
+The editor saves in Guitar Pro (`.gp`) format. Editing a `.gp3` / `.gp4` / `.gp5` / `.gpx` / MusicXML tab converts it to `.gp` on first save. A timestamped backup of the previous file is kept on the
+server (up to 10 backups).
 
 ### Toolbar
 
-| Control | Description |
-| ------- | ----------- |
-| **←** | Return to the player |
-| **Undo / Redo** | Step through edit history |
-| **Duration picker** | Set note length and dots |
-| **Rest (R)** / **Tie (L)** | Toggle rest or tie to previous note |
-| **+Bar / −Bar / +Beat** | Insert or delete bars and beats |
-| **Bar…** | Edit the current bar (see below) |
-| **Tracks…** | Switch, add, remove, or re-tune tracks |
-| **V1 / V2 / …** | Switch voice when the bar has multiple voices |
-| **Play** | Preview from the cursor |
-| **Save** | Save to server |
-| **⋮ menu** | Download `.gp`, keyboard shortcuts, exit |
+| Control                    | Description                                   |
+| -------------------------- | --------------------------------------------- |
+| **←**                      | Return to the player                          |
+| **Undo / Redo**            | Step through edit history                     |
+| **Duration picker**        | Set note length and dots                      |
+| **Rest (R)** / **Tie (L)** | Toggle rest or tie to previous note           |
+| **+Bar / −Bar / +Beat**    | Insert or delete bars and beats               |
+| **Bar…**                   | Edit the current bar (see below)              |
+| **Tracks…**                | Switch, add, remove, or re-tune tracks        |
+| **V1 / V2 / …**            | Switch voice when the bar has multiple voices |
+| **Play**                   | Preview from the cursor                       |
+| **Save**                   | Save to server                                |
+| **⋮ menu**                 | Download `.gp`, keyboard shortcuts, exit      |
 
 A second row of buttons provides quick access to note effects (hammer-on, palm mute, bends, slides, vibrato, harmonics, etc.) — the same actions are available via keyboard shortcuts.
 
@@ -231,7 +232,8 @@ Press **?** at any time in the editor to open the shortcut list. On macOS, use *
 
 ### Fret entry
 
-Type **0–9** on the main keyboard or the **numeric keypad** (with **NumLock on**) to enter a fret on the current string. Two digits typed in quick succession combine (e.g. **1** then **2** → fret 12). Press **Esc** to cancel a pending digit.
+Type **0–9** on the main keyboard or the **numeric keypad** (with **NumLock on**) to enter a fret on the current string. Two digits typed in quick succession combine (e.g. **1** then **2** → fret 12).
+Press **Esc** to cancel a pending digit.
 
 **Guitar Pro–style workflow** for filling in a bar string by string:
 
@@ -241,73 +243,74 @@ Type **0–9** on the main keyboard or the **numeric keypad** (with **NumLock on
 4. Type the next fret and repeat.
 5. Press **→** to advance to the next beat.
 
-With **NumLock off**, the numpad acts as navigation instead of digits (same as Guitar Pro): **2/4/6/8** move between strings and beats, **0** inserts a beat, **.** deletes a note, **+** / **−** change duration.
+With **NumLock off**, the numpad acts as navigation instead of digits (same as Guitar Pro): **2/4/6/8** move between strings and beats, **0** inserts a beat, **.** deletes a note, **+** / **−** change
+duration.
 
 ### Playback
 
-| Key | Action |
-| --- | ------ |
-| **Space** | Play / pause from the cursor |
+| Key             | Action                                 |
+| --------------- | -------------------------------------- |
+| **Space**       | Play / pause from the cursor           |
 | **Shift+Space** | Play from the start of the current bar |
-| **Esc** | Cancel fret input / stop playback |
+| **Esc**         | Cancel fret input / stop playback      |
 
 ### Navigation
 
-| Key | Action |
-| --- | ------ |
-| **← / →** | Previous / next beat (past the last beat appends a bar) |
-| **↑ / ↓** | Higher / lower string |
-| **Ctrl+← / Ctrl+→** | Previous / next bar |
-| **Tab / Shift+Tab** | Next / previous bar |
-| **Home / End** | First / last beat of the bar |
-| **Ctrl+Home / Ctrl+End** | Start / end of the score |
+| Key                      | Action                                                  |
+| ------------------------ | ------------------------------------------------------- |
+| **← / →**                | Previous / next beat (past the last beat appends a bar) |
+| **↑ / ↓**                | Higher / lower string                                   |
+| **Ctrl+← / Ctrl+→**      | Previous / next bar                                     |
+| **Tab / Shift+Tab**      | Next / previous bar                                     |
+| **Home / End**           | First / last beat of the bar                            |
+| **Ctrl+Home / Ctrl+End** | Start / end of the score                                |
 
 ### Notes & rhythm
 
-| Key | Action |
-| --- | ------ |
-| **Del / Backspace** | Delete the note at the cursor |
-| **Shift+Del** | Delete the whole beat |
-| **Ins** | Insert a beat before the cursor |
-| **R** | Turn the beat into a rest |
-| **L** | Tie to the previous note |
-| **+ / −** | Longer / shorter note duration |
-| **.** | Toggle dotted note |
+| Key                 | Action                          |
+| ------------------- | ------------------------------- |
+| **Del / Backspace** | Delete the note at the cursor   |
+| **Shift+Del**       | Delete the whole beat           |
+| **Ins**             | Insert a beat before the cursor |
+| **R**               | Turn the beat into a rest       |
+| **L**               | Tie to the previous note        |
+| **+ / −**           | Longer / shorter note duration  |
+| **.**               | Toggle dotted note              |
 
 ### Bars
 
-| Key | Action |
-| --- | ------ |
-| **Ctrl+Ins** | Insert a bar before the current one |
-| **Ctrl+Shift+Ins** | Append a bar at the end |
-| **Ctrl+Del** | Delete the current bar |
+| Key                | Action                              |
+| ------------------ | ----------------------------------- |
+| **Ctrl+Ins**       | Insert a bar before the current one |
+| **Ctrl+Shift+Ins** | Append a bar at the end             |
+| **Ctrl+Del**       | Delete the current bar              |
 
 ### Effects
 
-| Key | Action |
-| --- | ------ |
-| **H** | Hammer-on / pull-off |
-| **B** | Bend (preset dialog) |
-| **V** | Vibrato (none → slight → wide) |
-| **S / Shift+S** | Shift slide / legato slide |
-| **P / I / D** | Palm mute / let ring / staccato |
-| **X / O** | Dead note / ghost note |
-| **T / Shift+T** | Tapping / trill |
-| **G** | Grace note (none → before beat → on beat) |
-| **N** | Harmonics (natural → artificial → pinch → tap) |
-| **A** | Accent (none → normal → heavy) |
-| **Y** | Tremolo picking (off → 8th → 16th → 32nd) |
+| Key             | Action                                         |
+| --------------- | ---------------------------------------------- |
+| **H**           | Hammer-on / pull-off                           |
+| **B**           | Bend (preset dialog)                           |
+| **V**           | Vibrato (none → slight → wide)                 |
+| **S / Shift+S** | Shift slide / legato slide                     |
+| **P / I / D**   | Palm mute / let ring / staccato                |
+| **X / O**       | Dead note / ghost note                         |
+| **T / Shift+T** | Tapping / trill                                |
+| **G**           | Grace note (none → before beat → on beat)      |
+| **N**           | Harmonics (natural → artificial → pinch → tap) |
+| **A**           | Accent (none → normal → heavy)                 |
+| **Y**           | Tremolo picking (off → 8th → 16th → 32nd)      |
 
 ### Edit & file
 
-| Key | Action |
-| --- | ------ |
-| **Ctrl+Z** | Undo |
-| **Ctrl+Y / Ctrl+Shift+Z** | Redo |
-| **Ctrl+C / X / V** | Copy / cut / paste beat |
-| **Ctrl+S** | Save to server |
-| **Ctrl+Shift+S** | Download as `.gp` file |
-| **?** | Show keyboard shortcuts |
+| Key                       | Action                  |
+| ------------------------- | ----------------------- |
+| **Ctrl+Z**                | Undo                    |
+| **Ctrl+Y / Ctrl+Shift+Z** | Redo                    |
+| **Ctrl+C / X / V**        | Copy / cut / paste beat |
+| **Ctrl+S**                | Save to server          |
+| **Ctrl+Shift+S**          | Download as `.gp` file  |
+| **?**                     | Show keyboard shortcuts |
 
 > Browser-reserved shortcuts (Ctrl+W, Ctrl+T, etc.) are intentionally not bound.
 
@@ -347,10 +350,10 @@ You can deep-link specific track and audio sources with query parameters:
 /tab/1?audio=youtube-VuKSlOT__9s&track=2
 ```
 
-| Parameter | Description |
-| --------- | ----------- |
-| `track` | Track index to display (0-based) |
-| `audio` | Audio source ID — e.g. `synth`, `youtube-VIDEO_ID`, `audio-filename.mp3` |
+| Parameter | Description                                                              |
+| --------- | ------------------------------------------------------------------------ |
+| `track`   | Track index to display (0-based)                                         |
+| `audio`   | Audio source ID — e.g. `synth`, `youtube-VIDEO_ID`, `audio-filename.mp3` |
 
 Example live demo: https://its-mytabs.kuma.pet/tab/1?audio=youtube-VuKSlOT__9s&track=2
 
@@ -362,4 +365,5 @@ Example live demo: https://its-mytabs.kuma.pet/tab/1?audio=youtube-VuKSlOT__9s&t
 - **No Cursor** mode auto-scrolls the tab without a moving cursor — useful for learning to keep time without following a cursor.
 - Count-in and metronome only work with the built-in synth.
 - The bottom toolbar auto-hides when enabled in Settings — hover near the bottom edge to reveal it.
-- Free tab sources: [Ultimate Guitar](https://www.ultimate-guitar.com/), [911Tabs](https://www.911tabs.com/), [MuseScore](https://musescore.com/sheetmusic?instrument=72%2C73&recording_type=free-download), [GProTab](https://gprotab.net/)
+- Free tab sources: [Ultimate Guitar](https://www.ultimate-guitar.com/), [911Tabs](https://www.911tabs.com/),
+  [MuseScore](https://musescore.com/sheetmusic?instrument=72%2C73&recording_type=free-download), [GProTab](https://gprotab.net/)
