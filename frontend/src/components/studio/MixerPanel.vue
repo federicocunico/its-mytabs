@@ -26,9 +26,7 @@ export default defineComponent({
             return !t.mute && (!this.anySolo || t.solo);
         },
         rowStyle(t) {
-            return t.selected
-                ? { background: "#1c222b", border: `1px solid ${t.color}66`, boxShadow: `inset 3px 0 0 ${t.color}` }
-                : {};
+            return t.selected ? { background: "#1c222b", border: `1px solid ${t.color}66`, boxShadow: `inset 3px 0 0 ${t.color}` } : {};
         },
     },
 });
@@ -68,7 +66,11 @@ export default defineComponent({
                 <div class="track-top">
                     <span class="track-bar" :style="{ background: t.color }"></span>
                     <span class="track-icon" :style="{ background: t.color + '22', borderColor: t.color + '66' }">
-                        <svg width="15" height="15" viewBox="0 0 24 24" :fill="t.color"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>
+                        <svg width="15" height="15" viewBox="0 0 24 24" :fill="t.color">
+                            <path d="M9 18V5l12-2v13" />
+                            <circle cx="6" cy="18" r="3" />
+                            <circle cx="18" cy="16" r="3" />
+                        </svg>
                     </span>
                     <div class="track-meta">
                         <div class="track-name" :title="t.name">{{ t.name }}</div>

@@ -9,10 +9,9 @@
 <a target="_blank" href="https://hub.docker.com/r/louislam/uptime-kuma"><img src="https://img.shields.io/docker/v/louislam/its-mytabs/latest?label=docker%20image%20ver." /></a>
 <a target="_blank" href="https://github.com/louislam/uptime-kuma"><img src="https://img.shields.io/github/last-commit/louislam/its-mytabs" /></a>
 
-Open source, web based, self hostable guitar/bass tab viewer and player, similar to Songsterr.
+Open source, web based, self hostable guitar/bass tab player and editor with a Guitar-Pro-style studio interface, similar to Songsterr.
 
-<img width="600" alt="image" src="https://github.com/user-attachments/assets/d7859f4a-8ae0-41e2-bdeb-93b900cc0220" />
-<img width="200"  alt="image" src="https://github.com/user-attachments/assets/c980d516-8f6d-4cca-8a59-4a1a4cc75b1b" />
+<img width="800" alt="MyTabs Studio — player" src="./docs/screenshots/studio-player.png" />
 
 ## Live Demo
 
@@ -22,18 +21,25 @@ https://its-mytabs.kuma.pet/tab/1?audio=youtube-VuKSlOT__9s&track=2
 
 - Free and open source (MIT License)
 - Supports guitar tabs and bass tabs
+- **Studio interface** — a Guitar-Pro-style app shell shared by the player and the editor:
+  - Top bar with song info, key / tempo / time-signature badges and a **Player | Edit** switch
+  - The notation always renders on a **white sheet** inside the dark chrome
+  - **Docked mixer** (right rail): per-track solo / mute / volume, master volume, track colors
+  - **Multi-track bar navigator** (bottom): one row per track, colored blocks where each track plays, section lane, playhead — click any bar to jump there
+  - Docked transport: play/pause, to start/end, loop, metronome, count-in, speed slider, time readout
+  - Every panel is collapsible and resizable (layout persists across reloads)
+- **Score editor** — edit tabs right in the browser (notes, rests, durations, effects, bars, tracks, tunings) with full keyboard shortcuts, undo/redo, and save back to the server as .gp
 - Sync your tabs with audio files (.mp3, .ogg) or Youtube videos
 - MIDI Synth - able to mute tracks and solo tracks
 - Supports .gp, .gpx, .gp3, .gp4, .gp5, .musicxml, .capx formats
-- Simple UI/UX
 - Mobile friendly
 - Offer different cursor modes:
   - No cursor (just auto scroll the tab) - You can use it to learn to coop with drums, not just following the cursor
   - Highlight the current bar
   - Follow cursor
-- Notes coloring
-- Dark/Light tab colors
-- Able to show the score view instead of tab view
+- Notes coloring (string → color coding on the sheet)
+- Sections navigation (jump to Intro / Verse / Chorus from the left rail)
+- Able to show the score view instead of tab view (View toggle in the left rail)
 - Able to share tabs with others with a link
 
 ## Installation
@@ -105,13 +111,13 @@ Go to `http://localhost:47777` to access the web UI.
 
 ## Screenshots
 
-<img width="300"  alt="image" src="https://github.com/user-attachments/assets/266c6c5a-ae86-4b88-8305-3ae120cf4dd8" />
+**Player** — white score sheet, sections, docked mixer, multi-track bar navigator and transport:
 
-<img width="300"  alt="image" src="https://github.com/user-attachments/assets/a57293a4-5399-4a76-a14d-da026d0c4a7a" />
+<img width="800" alt="MyTabs Studio — player" src="./docs/screenshots/studio-player.png" />
 
-<img width="300" alt="image" src="https://github.com/user-attachments/assets/972aa28a-1235-465a-be47-ed2bc9bb3035" />
+**Editor** — tool palette with keyboard-shortcut hints, voice switch, live validation and the same mixer/navigator:
 
-<img width="300" alt="image" src="https://github.com/user-attachments/assets/a617af33-ba33-4022-b9d2-6fe96e11e85d" />
+<img width="800" alt="MyTabs Studio — editor" src="./docs/screenshots/studio-editor.png" />
 
 ## Environment Variables
 

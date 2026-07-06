@@ -17,6 +17,8 @@ export default defineComponent({
         timeCur: { type: String, default: "0:00" },
         timeTotal: { type: String, default: "0:00" },
         bottomOpen: { type: Boolean, default: true },
+        metronomeDisabled: { type: Boolean, default: false },
+        countInDisabled: { type: Boolean, default: false },
     },
     emits: [
         "playPause",
@@ -33,11 +35,14 @@ export default defineComponent({
 
 <template>
     <div class="transport">
-        <button class="t-btn t-collapse" title="Collapse / expand track panel" @click="$emit('toggleBottom')">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path :d="bottomOpen ? 'M6 9l6 6 6-6' : 'M6 15l6-6 6 6'" />
-            </svg>
-        </button>
+        <div class="t-left">
+            <slot name="audioLeft" />
+            <button class="t-btn t-collapse" title="Collapse / expand track panel" @click="$emit('toggleBottom')">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path :d="bottomOpen ? 'M6 9l6 6 6-6' : 'M6 15l6-6 6 6'" />
+                </svg>
+            </button>
+        </div>
 
         <div class="t-spacer"></div>
 
@@ -45,28 +50,61 @@ export default defineComponent({
             <span class="t-time">{{ timeCur }} <span class="t-time-sep">/ {{ timeTotal }}</span></span>
 
             <button class="t-btn" title="To start" @click="$emit('toStart')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zM20 6L9 12l11 6z" /></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6 6h2v12H6zM20 6L9 12l11 6z" />
+                </svg>
             </button>
 
             <button class="t-play" :class="{ playing }" title="Play / Pause (Space)" @click="$emit('playPause')">
-                <svg v-if="playing" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
-                <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="margin-left: 2px"><path d="M7 5v14l12-7z" /></svg>
+                <svg v-if="playing" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="5" width="4" height="14" rx="1" />
+                    <rect x="14" y="5" width="4" height="14" rx="1" />
+                </svg>
+                <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="margin-left: 2px">
+                    <path d="M7 5v14l12-7z" />
+                </svg>
             </button>
 
             <button class="t-btn" title="To end" @click="$emit('toEnd')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM4 6l11 6L4 18z" /></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M16 6h2v12h-2zM4 6l11 6L4 18z" />
+                </svg>
             </button>
 
             <button class="t-btn" :class="{ active: looping, 'accent-indigo': looping }" title="Loop" @click="$emit('toggleLoop')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 2l4 4-4 4" />
+                    <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                    <path d="M7 22l-4-4 4-4" />
+                    <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                </svg>
             </button>
 
-            <button class="t-btn" :class="{ active: metronome, 'accent-teal': metronome }" title="Metronome" @click="$emit('toggleMetronome')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21h12L15 3H9L6 21z" /><path d="M8 15h8" /><path d="M12 15L16 6" /></svg>
+            <button
+                class="t-btn"
+                :class="{ active: metronome, 'accent-teal': metronome, disabled: metronomeDisabled }"
+                :disabled="metronomeDisabled"
+                title="Metronome"
+                @click="$emit('toggleMetronome')"
+            >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 21h12L15 3H9L6 21z" />
+                    <path d="M8 15h8" />
+                    <path d="M12 15L16 6" />
+                </svg>
             </button>
 
-            <button class="t-btn" :class="{ active: countIn, 'accent-amber': countIn }" title="Count-in" @click="$emit('toggleCountIn')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v4l2 2" /></svg>
+            <button
+                class="t-btn"
+                :class="{ active: countIn, 'accent-amber': countIn, disabled: countInDisabled }"
+                :disabled="countInDisabled"
+                title="Count-in"
+                @click="$emit('toggleCountIn')"
+            >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 8v4l2 2" />
+                </svg>
             </button>
         </div>
 
@@ -77,7 +115,7 @@ export default defineComponent({
             <input
                 type="range"
                 min="20"
-                max="200"
+                max="1000"
                 step="5"
                 :value="speed"
                 @input="$emit('setSpeed', +$event.target.value)"
@@ -96,6 +134,13 @@ export default defineComponent({
     gap: 10px;
     padding: 6px 16px 8px;
     font-family: $st-font-ui;
+}
+
+.t-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
 }
 
 .t-spacer {
@@ -132,6 +177,11 @@ export default defineComponent({
         background: rgba(244, 165, 43, 0.13);
         border-color: $st-solo-amber;
         color: $st-solo-amber;
+    }
+    &.disabled,
+    &:disabled {
+        opacity: 0.4;
+        cursor: default;
     }
 }
 

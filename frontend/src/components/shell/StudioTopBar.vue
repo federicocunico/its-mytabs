@@ -17,8 +17,13 @@ export default defineComponent({
         timeSignature: { type: String, default: "" },
         /** { dirty, canUndo, canRedo, saving } */
         state: { type: Object, required: true },
+        mode: { type: String, default: "editor" },
+        editDisabled: { type: Boolean, default: false },
+        editDisabledTitle: { type: String, default: "" },
+        /** Show the player-mode overflow menu (Details… etc.) — logged-in users only. */
+        showDetails: { type: Boolean, default: false },
     },
-    emits: ["command", "back"],
+    emits: ["command", "back", "switchMode"],
     methods: {
         command(name, arg) {
             this.$emit("command", name, arg);
@@ -30,12 +35,18 @@ export default defineComponent({
 <template>
     <div class="st-topbar">
         <button class="tb-icon" title="Back to library" @click="$emit('back')">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+            </svg>
         </button>
 
         <div class="tb-mark">
             <span class="tb-logo">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" fill="#fff" /><circle cx="18" cy="16" r="3" fill="#fff" /></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff">
+                    <path d="M9 18V5l12-2v13" />
+                    <circle cx="6" cy="18" r="3" fill="#fff" />
+                    <circle cx="18" cy="16" r="3" fill="#fff" />
+                </svg>
             </span>
             <span class="tb-name">MyTabs<span class="tb-name-2">&#8202;Studio</span></span>
         </div>
@@ -55,29 +66,70 @@ export default defineComponent({
 
         <div class="tb-spacer"></div>
 
-        <div class="tb-group">
-            <button class="tb-icon" title="Undo (Ctrl+Z)" :disabled="!state.canUndo" @click="command('undo')">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5" /><path d="M4 9h11a6 6 0 0 1 0 12h-3" /></svg>
-            </button>
-            <button class="tb-icon" title="Redo (Ctrl+Y)" :disabled="!state.canRedo" @click="command('redo')">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5" /><path d="M20 9H9a6 6 0 0 0 0 12h3" /></svg>
-            </button>
+        <div class="tb-mode">
+            <button
+                type="button"
+                class="tb-mode-btn"
+                :class="{ active: mode === 'player' }"
+                @click="$emit('switchMode', 'player')"
+            >Player</button>
+            <button
+                type="button"
+                class="tb-mode-btn"
+                :class="{ active: mode === 'editor' }"
+                :disabled="editDisabled"
+                :title="editDisabled ? editDisabledTitle : 'Open score editor'"
+                @click="$emit('switchMode', 'editor')"
+            >Edit</button>
         </div>
 
-        <button class="tb-save" :disabled="state.saving || !state.dirty" title="Save" @click="command('save')">
+        <template v-if="mode === 'editor'">
+            <div class="tb-group">
+                <button class="tb-icon" title="Undo (Ctrl+Z)" :disabled="!state.canUndo" @click="command('undo')">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 14L4 9l5-5" />
+                        <path d="M4 9h11a6 6 0 0 1 0 12h-3" />
+                    </svg>
+                </button>
+                <button class="tb-icon" title="Redo (Ctrl+Y)" :disabled="!state.canRedo" @click="command('redo')">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M15 14l5-5-5-5" />
+                        <path d="M20 9H9a6 6 0 0 0 0 12h3" />
+                    </svg>
+                </button>
+            </div>
+
+            <button class="tb-save" :disabled="state.saving || !state.dirty" title="Save" @click="command('save')">
             <span v-if="state.saving" class="spinner-border spinner-border-sm" role="status"></span>
             <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><path d="M17 21v-8H7v8M7 3v5h8" /></svg>
             Save
             <span v-if="state.dirty" class="tb-dirty" title="Unsaved changes">●</span>
         </button>
 
-        <BDropdown size="sm" variant="secondary" no-caret toggle-class="tb-more-toggle" end>
+            <BDropdown size="sm" variant="secondary" no-caret toggle-class="tb-more-toggle" end>
+                <template #button-content>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="5" r="1.6" />
+                        <circle cx="12" cy="12" r="1.6" />
+                        <circle cx="12" cy="19" r="1.6" />
+                    </svg>
+                </template>
+                <BDropdownItem @click="command('trackManager')">Tracks…</BDropdownItem>
+                <BDropdownItem @click="command('download')">Download .gp (Ctrl+Shift+S)</BDropdownItem>
+                <BDropdownItem @click="command('help')">Keyboard shortcuts (?)</BDropdownItem>
+            </BDropdown>
+        </template>
+
+        <BDropdown v-if="mode === 'player' && showDetails" size="sm" variant="secondary" no-caret toggle-class="tb-more-toggle" end>
             <template #button-content>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" /></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="5" r="1.6" />
+                    <circle cx="12" cy="12" r="1.6" />
+                    <circle cx="12" cy="19" r="1.6" />
+                </svg>
             </template>
-            <BDropdownItem @click="command('trackManager')">Tracks…</BDropdownItem>
-            <BDropdownItem @click="command('download')">Download .gp (Ctrl+Shift+S)</BDropdownItem>
-            <BDropdownItem @click="command('help')">Keyboard shortcuts (?)</BDropdownItem>
+            <BDropdownItem @click="command('editDetails')">Tab details…</BDropdownItem>
+            <BDropdownItem @click="command('editAudio')">Youtube &amp; audio files…</BDropdownItem>
         </BDropdown>
     </div>
 </template>
@@ -191,6 +243,37 @@ export default defineComponent({
 
 .tb-spacer {
     flex: 1;
+}
+
+.tb-mode {
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    background: $st-panel-2;
+    border: 1px solid $st-border-2;
+    border-radius: 8px;
+    flex: none;
+}
+
+.tb-mode-btn {
+    height: 28px;
+    padding: 0 12px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: $st-text-muted;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+
+    &.active {
+        background: rgba(91, 110, 245, 0.15);
+        color: $st-accent;
+    }
+    &:disabled {
+        opacity: 0.4;
+        cursor: default;
+    }
 }
 
 .tb-group {

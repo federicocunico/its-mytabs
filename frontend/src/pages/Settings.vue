@@ -135,15 +135,6 @@ export default defineComponent({
             </select>
         </div>
 
-        <!-- Score Color Dropdown -->
-        <div class="mb-3">
-            <label for="scoreColor" class="form-label">Tab/Score Color</label>
-            <select id="scoreColor" class="form-select" v-model="setting.scoreColor">
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-            </select>
-        </div>
-
         <!-- Tab/Score Display Scale -->
         <div class="mb-3">
             <label for="scale" class="form-label">Tab/Score Display Scale</label>
@@ -179,15 +170,6 @@ export default defineComponent({
             <select id="showKeySignature" class="form-select" v-model="setting.showKeySignature">
                 <option :value="true">Yes</option>
                 <option :value="false">No</option>
-            </select>
-        </div>
-
-        <!-- Toolbar Auto-hide -->
-        <div class="mb-3">
-            <label for="toolbarAutoHide" class="form-label">Auto-hide bottom toolbar</label>
-            <select id="toolbarAutoHide" class="form-select" v-model="setting.toolbarAutoHide">
-                <option :value="false">No</option>
-                <option :value="true">Yes</option>
             </select>
         </div>
 

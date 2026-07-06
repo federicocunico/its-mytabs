@@ -2,19 +2,27 @@
 import { defineComponent } from "vue";
 import { notify } from "@kyvg/vue3-notification";
 import { BModal } from "bootstrap-vue-next";
-import { baseURL, checkFetch, generalError, getSetting } from "../app.js";
-import { getFileURL, getTempToken } from "../alphatab-shared.ts";
+import { ActionBuffer, baseURL, checkFetch, generalError, getInstrumentName, getSetting } from "../app.js";
+import { buildDisplayResources, getFileURL, getTempToken } from "../alphatab-shared.ts";
+import { trackColor } from "../styles/colors.ts";
 import { EditorController } from "../editor/EditorController.ts";
 import { KeyboardController } from "../editor/keyboard-controller.ts";
 import { KEYMAP } from "../editor/keymap.ts";
 import { downloadGp, saveScoreToServer } from "../editor/persistence.ts";
-import EditorToolbar from "../components/editor/EditorToolbar.vue";
+import { barIndexFromTick, buildPresenceMatrix, buildSections, formatTimeMs, loopBarSpan, scoreEndTick, tickToMs } from "../studio/score-nav.ts";
+import { getKeySignature } from "../util.ts";
+import StudioShell from "../components/shell/StudioShell.vue";
+import StudioTopBar from "../components/shell/StudioTopBar.vue";
 import EditorStatusBar from "../components/editor/EditorStatusBar.vue";
 import EditorSidebar from "../components/editor/EditorSidebar.vue";
-import EditorTrackPanel from "../components/editor/EditorTrackPanel.vue";
+import MixerPanel from "../components/studio/MixerPanel.vue";
+import TrackNavigator from "../components/studio/TrackNavigator.vue";
+import TransportBar from "../components/studio/TransportBar.vue";
 import BendDialog from "../components/editor/BendDialog.vue";
 import BarSettingsDialog from "../components/editor/BarSettingsDialog.vue";
 import TrackManagerDialog from "../components/editor/TrackManagerDialog.vue";
+
+const speedActionBuffer = new ActionBuffer(1000);
 
 const alphaTab = await import("@coderline/alphatab");
 
@@ -31,7 +39,19 @@ const DURATION_LABELS = {
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
 export default defineComponent({
-    components: { EditorToolbar, EditorStatusBar, EditorSidebar, EditorTrackPanel, BendDialog, BarSettingsDialog, TrackManagerDialog, BModal },
+    components: {
+        StudioShell,
+        StudioTopBar,
+        EditorStatusBar,
+        EditorSidebar,
+        MixerPanel,
+        TrackNavigator,
+        TransportBar,
+        BendDialog,
+        BarSettingsDialog,
+        TrackManagerDialog,
+        BModal,
+    },
 
     /** @type {alphaTab.AlphaTabApi} */
     api: null,
@@ -55,6 +75,23 @@ export default defineComponent({
             playing: false,
             saving: false,
             midiDirty: false,
+            enableMetronome: false,
+            enableCountIn: false,
+            isLooping: false,
+            speed: 100,
+            masterVolume: 100,
+            soloTrackID: -1,
+            muteTrackList: {},
+            trackVolumes: {},
+            playbackRange: null,
+            studio: {
+                presence: [],
+                sections: [],
+                playhead: 0,
+                navCurrentBar: 0,
+                timeCur: "0:00",
+                timeTotal: "0:00",
+            },
             showHelp: false,
             showBend: false,
             showBarSettings: false,
@@ -128,6 +165,91 @@ export default defineComponent({
             }
             return groups;
         },
+
+        studioBadges() {
+            if (!this.ctrl?.score) {
+                return { keyBadge: "", tempo: null, timeSignature: "" };
+            }
+            const track = this.ctrl.score.tracks[this.ctrl.cursor.trackIndex];
+            const bar = track?.staves[0]?.bars[0];
+            const mb = this.ctrl.score.masterBars[0];
+            return {
+                keyBadge: bar ? getKeySignature(bar) : "",
+                tempo: mb?.tempoAutomations[0] ? Math.round(mb.tempoAutomations[0].value) : null,
+                timeSignature: mb ? `${mb.timeSignatureNumerator}/${mb.timeSignatureDenominator}` : "",
+            };
+        },
+
+        mixerTracks() {
+            if (!this.ctrl?.score) {
+                return [];
+            }
+            return this.ctrl.score.tracks.map((t, i) => ({
+                index: i,
+                name: t.name || getInstrumentName(t.playbackInfo.program),
+                instrument: getInstrumentName(t.playbackInfo.program),
+                color: trackColor(i),
+                solo: this.soloTrackID === i,
+                mute: !!this.muteTrackList[i],
+                volume: this.trackVolumes[i] ?? 100,
+                selected: this.ctrl.cursor.trackIndex === i,
+            }));
+        },
+
+        navBarCount() {
+            return this.ctrl?.score?.masterBars.length ?? 0;
+        },
+
+        navLoop() {
+            if (!this.isLooping || !this.ctrl?.score) {
+                return null;
+            }
+            if (this.playbackRange) {
+                return loopBarSpan(this.ctrl.score, this.playbackRange);
+            }
+            const last = this.navBarCount - 1;
+            return last >= 0 ? { start: 0, end: last } : null;
+        },
+    },
+
+    watch: {
+        enableCountIn() {
+            if (!this.api) {
+                return;
+            }
+            this.api.countInVolume = this.enableCountIn ? 1 : 0;
+        },
+
+        enableMetronome() {
+            if (!this.api) {
+                return;
+            }
+            this.api.metronomeVolume = this.enableMetronome ? 1 : 0;
+        },
+
+        isLooping() {
+            if (!this.api) {
+                return;
+            }
+            this.api.isLooping = this.isLooping;
+        },
+
+        speed(newVal) {
+            if (!this.api) {
+                return;
+            }
+            let speed = newVal;
+            if (typeof speed !== "number" || isNaN(speed)) {
+                speed = 100;
+            } else if (speed < 20) {
+                speed = 20;
+            } else if (speed > 1000) {
+                speed = 1000;
+            }
+            speedActionBuffer.run(() => {
+                this.api.playbackSpeed = parseFloat((speed / 100).toFixed(2));
+            });
+        },
     },
 
     async mounted() {
@@ -176,6 +298,7 @@ export default defineComponent({
     beforeUnmount() {
         window.removeEventListener("keydown", this._onKeydown);
         window.removeEventListener("beforeunload", this._onBeforeUnload);
+        this.stopTransportPoll();
         if (this.api) {
             this.api.destroy();
             this.api = null;
@@ -226,6 +349,7 @@ export default defineComponent({
                 display: {
                     // The editor always shows the tablature; honor a standard-notation preference on top.
                     staveProfile: this.setting.scoreStyle === "score" || this.setting.scoreStyle === "score-tab" ? alphaTab.StaveProfile.ScoreTab : alphaTab.StaveProfile.Tab,
+                    resources: buildDisplayResources(this.setting),
                     scale: this.setting.scale ?? 1,
                 },
             });
@@ -258,18 +382,51 @@ export default defineComponent({
                 }
                 this.ctrl.attach(score, this.api.settings, this.trackIndex);
                 this.trackName = score.tracks[this.trackIndex].name;
+
+                if (score.masterBars.length > 0 && score.masterBars[0].tempoAutomations.length > 0) {
+                    score.masterBars[0].tempoAutomations[0].isVisible = true;
+                }
+
+                this.initTrackVolumes(score);
+                this.rebuildNavigatorData();
+                this.api.metronomeVolume = this.enableMetronome ? 1 : 0;
+                this.api.countInVolume = this.enableCountIn ? 1 : 0;
+                this.api.isLooping = this.isLooping;
+                this.api.playbackSpeed = this.speed / 100;
+                this.api.masterVolume = this.masterVolume / 100;
+
                 this.applyBarValidationStyles();
                 this.api.renderTracks([score.tracks[this.trackIndex]]);
                 this.ready = true;
+                this.refreshTransportPosition();
             });
 
             this.api.postRenderFinished.on(() => {
                 this.updateOverlay();
             });
 
+            this.api.playbackRangeChanged.on(() => {
+                this.playbackRange = this.api.playbackRange;
+            });
+
+            this.api.playerFinished.on(() => {
+                if (!this.isLooping) {
+                    this.playing = false;
+                    this.ui.playing = false;
+                }
+                this.stopTransportPoll();
+                this.refreshTransportPosition();
+            });
+
             this.api.playerStateChanged.on((args) => {
                 this.playing = args.state === 1;
                 this.ui.playing = this.playing;
+                if (this.playing) {
+                    this.startTransportPoll();
+                } else {
+                    this.stopTransportPoll();
+                    this.refreshTransportPosition();
+                }
             });
 
             this.api.beatMouseDown.on((beat) => {
@@ -698,6 +855,8 @@ export default defineComponent({
             }
 
             this.refreshTrackPanel();
+            this.rebuildNavigatorData();
+            this.refreshTransportPosition();
             this.updateOverlay();
         },
 
@@ -711,6 +870,180 @@ export default defineComponent({
             }));
             this.trackPanel.currentIndex = this.ctrl.cursor.trackIndex;
             this.trackPanel.invalidBars = this.ctrl.invalidBars.map((b) => b.barIndex);
+        },
+
+        initTrackVolumes(score) {
+            // changeTrackVolume takes a multiplier relative to the file's own
+            // track volume, so every slider starts at 100%.
+            const volumes = {};
+            score.tracks.forEach((t, i) => {
+                volumes[i] = 100;
+            });
+            this.trackVolumes = volumes;
+        },
+
+        rebuildNavigatorData() {
+            if (!this.ctrl?.score) {
+                return;
+            }
+            const score = this.ctrl.score;
+            this.studio.presence = buildPresenceMatrix(score);
+            this.studio.sections = buildSections(score.masterBars);
+            score.tracks.forEach((t, i) => {
+                if (this.trackVolumes[i] === undefined) {
+                    this.trackVolumes[i] = 100;
+                }
+            });
+            const end = scoreEndTick(score);
+            this.studio.timeTotal = formatTimeMs(tickToMs(score, end));
+        },
+
+        refreshTransportPosition() {
+            if (!this.ctrl?.score) {
+                return;
+            }
+            const score = this.ctrl.score;
+            const tick = this.playing ? Number(this.api?.tickPosition ?? 0) : Number(this.ctrl.cursor.resolve()?.beat?.absolutePlaybackStart ?? this.api?.tickPosition ?? 0);
+            const end = scoreEndTick(score);
+            this.studio.playhead = end > 0 ? tick / end : 0;
+            this.studio.navCurrentBar = this.playing ? barIndexFromTick(score, tick) : this.ctrl.cursor.pos.barIndex;
+            this.studio.timeCur = formatTimeMs(tickToMs(score, tick));
+        },
+
+        startTransportPoll() {
+            this.stopTransportPoll();
+            const tick = () => {
+                this.refreshTransportPosition();
+                if (this.playing) {
+                    this._transportRaf = requestAnimationFrame(tick);
+                }
+            };
+            this._transportRaf = requestAnimationFrame(tick);
+        },
+
+        stopTransportPoll() {
+            if (this._transportRaf) {
+                cancelAnimationFrame(this._transportRaf);
+                this._transportRaf = null;
+            }
+        },
+
+        goToPlayer() {
+            this.$router.push(`/tab/${this.tabID}?track=${this.trackIndex}`);
+        },
+
+        goToLibrary() {
+            this.$router.push("/");
+        },
+
+        onSwitchMode(mode) {
+            if (mode === "player") {
+                this.goToPlayer();
+            }
+        },
+
+        transportToStart() {
+            if (this.playing && this.api) {
+                this.api.tickPosition = 0;
+                this.refreshTransportPosition();
+                return;
+            }
+            this.dispatch("scoreStart");
+        },
+
+        transportToEnd() {
+            if (this.playing && this.api && this.ctrl?.score) {
+                const end = scoreEndTick(this.ctrl.score);
+                this.api.tickPosition = end;
+                this.refreshTransportPosition();
+                return;
+            }
+            this.dispatch("scoreEnd");
+        },
+
+        toggleLoop() {
+            this.isLooping = !this.isLooping;
+        },
+
+        toggleMetronome() {
+            this.enableMetronome = !this.enableMetronome;
+        },
+
+        toggleCountIn() {
+            this.enableCountIn = !this.enableCountIn;
+        },
+
+        setSpeed(value) {
+            this.speed = value;
+        },
+
+        setMasterVolume(value) {
+            this.masterVolume = value;
+            if (this.api) {
+                this.api.masterVolume = value / 100;
+            }
+        },
+
+        toggleSolo(trackID) {
+            if (!this.api) {
+                return;
+            }
+            if (this.soloTrackID === trackID) {
+                this.api.changeTrackMute(this.api.score.tracks, false);
+                this.soloTrackID = -1;
+                this.muteTrackList = {};
+            } else {
+                const muteList = [];
+                const soloList = [];
+                for (const track of this.api.score.tracks) {
+                    if (track.index !== trackID) {
+                        muteList.push(track);
+                        this.muteTrackList[track.index] = true;
+                    } else {
+                        soloList.push(track);
+                        this.muteTrackList[track.index] = false;
+                    }
+                }
+                this.api.changeTrackMute(muteList, true);
+                this.api.changeTrackMute(soloList, false);
+                this.soloTrackID = trackID;
+            }
+        },
+
+        toggleMute(trackID) {
+            if (!this.api) {
+                return;
+            }
+            this.soloTrackID = -1;
+            this.muteTrackList[trackID] = !this.muteTrackList[trackID];
+            this.api.changeTrackMute([this.api.score.tracks[trackID]], this.muteTrackList[trackID]);
+        },
+
+        setTrackVolume({ index, value }) {
+            if (!this.api) {
+                return;
+            }
+            this.trackVolumes[index] = value;
+            const track = this.api.score.tracks[index];
+            this.api.changeTrackVolume(track, value / 100);
+        },
+
+        seekToBar(barIndex) {
+            if (!this.ctrl?.score || !this.api) {
+                return;
+            }
+            const track = this.ctrl.score.tracks[this.ctrl.cursor.trackIndex];
+            const bar = track.staves[0]?.bars[barIndex];
+            const beat = bar?.voices[0]?.beats[0];
+            if (!beat) {
+                return;
+            }
+            if (this.playing) {
+                this.api.tickPosition = beat.absolutePlaybackStart;
+                this.refreshTransportPosition();
+            } else {
+                this.dispatch("goToBar", barIndex);
+            }
         },
 
         /** Paint invalid bars' numbers red via alphaTab's style API (must run BEFORE a render). */
@@ -993,108 +1326,221 @@ export default defineComponent({
 </script>
 
 <template>
-    <div class="tab-editor">
-        <EditorToolbar
-            :state="ui"
-            :title="tab.title || 'Untitled'"
-            :trackName="trackName"
-            @command="dispatch"
-        />
-
-        <div class="editor-main">
-            <EditorSidebar v-if="ready" :ui="ui" :fx="fx" :disabled="playing || !ready" @command="dispatch" />
-            <div class="score-area">
-                <div ref="atContainer" v-pre></div>
-            </div>
-        </div>
-
-        <div class="editor-bottom" v-if="ready">
-            <EditorTrackPanel
-                :tracks="trackPanel.tracks"
-                :currentIndex="trackPanel.currentIndex"
-                :barIndex="status.barIndex"
-                :barCount="status.barCount"
-                :invalidBars="trackPanel.invalidBars"
-                :disabled="playing"
-                @switchTrack="switchTrack"
-                @openTrackManager="openTrackManager"
-                @goToBar="dispatch('goToBar', $event)"
+    <StudioShell>
+        <template #top>
+            <StudioTopBar
+                mode="editor"
+                :title="tab.title || 'Untitled'"
+                :artist="tab.artist || ''"
+                :key-badge="studioBadges.keyBadge"
+                :tempo="studioBadges.tempo"
+                :time-signature="studioBadges.timeSignature"
+                :state="ui"
+                @command="dispatch"
+                @back="goToLibrary"
+                @switch-mode="onSwitchMode"
             />
-            <EditorStatusBar :info="status" />
-        </div>
+        </template>
 
-        <BModal v-model="showLeaveModal" title="Unsaved changes">
-            <p>You have unsaved changes. What do you want to do?</p>
-            <template #footer>
-                <button class="btn btn-success" :disabled="saving" @click="leaveWithSave">
+        <template #left>
+            <div v-if="ready" class="editor-left-rail">
+                <div v-if="ui.voiceCount > 1" class="voice-strip">
+                    <button
+                        v-for="v in ui.voiceCount"
+                        :key="v"
+                        type="button"
+                        class="voice-btn"
+                        :class="{ active: ui.voiceIndex === v - 1 }"
+                        :title="`Edit voice ${v}`"
+                        :disabled="playing"
+                        @click="dispatch('setVoice', v - 1)"
+                    >V{{ v }}</button>
+                </div>
+                <EditorSidebar :ui="ui" :fx="fx" :disabled="playing || !ready" @command="dispatch" />
+            </div>
+        </template>
+
+        <template #score>
+            <div class="score-sheet">
+                <div ref="atContainer" v-pre class="score-sheet-inner"></div>
+            </div>
+        </template>
+
+        <template #right>
+            <MixerPanel
+                v-if="ready"
+                :tracks="mixerTracks"
+                :master="masterVolume"
+                :playing="playing"
+                @select-track="switchTrack"
+                @toggle-solo="toggleSolo"
+                @toggle-mute="toggleMute"
+                @set-volume="setTrackVolume"
+                @set-master="setMasterVolume"
+                @add-track="openTrackManager"
+            />
+        </template>
+
+        <template #bottomGrid>
+            <div v-if="ready" class="bottom-grid-wrap">
+                <TrackNavigator
+                    class="nav-area"
+                    :tracks="mixerTracks"
+                    :bar-count="navBarCount"
+                    :presence="studio.presence"
+                    :sections="studio.sections"
+                    :current-bar="studio.navCurrentBar"
+                    :playhead="studio.playhead"
+                    :loop="navLoop"
+                    @seek-bar="seekToBar"
+                    @select-track="switchTrack"
+                />
+                <EditorStatusBar :info="status" class="editor-status-strip" />
+            </div>
+        </template>
+
+        <template #bottomBar="{ bottomOpen, toggleBottom }">
+            <TransportBar
+                :playing="playing"
+                :looping="isLooping"
+                :metronome="enableMetronome"
+                :count-in="enableCountIn"
+                :speed="speed"
+                :time-cur="studio.timeCur"
+                :time-total="studio.timeTotal"
+                :bottom-open="bottomOpen"
+                @play-pause="dispatch('playPause')"
+                @to-start="transportToStart"
+                @to-end="transportToEnd"
+                @toggle-loop="toggleLoop"
+                @toggle-metronome="toggleMetronome"
+                @toggle-count-in="toggleCountIn"
+                @set-speed="setSpeed"
+                @toggle-bottom="toggleBottom"
+            />
+        </template>
+    </StudioShell>
+
+    <BModal v-model="showLeaveModal" title="Unsaved changes">
+        <p>You have unsaved changes. What do you want to do?</p>
+        <template #footer>
+            <button class="btn btn-success" :disabled="saving" @click="leaveWithSave">
                     <span v-if="saving" class="spinner-border spinner-border-sm me-1" role="status"></span>
                     Save &amp; leave
                 </button>
-                <button class="btn btn-danger" :disabled="saving" @click="leaveWithDiscard">Discard changes</button>
-                <button class="btn btn-secondary" :disabled="saving" @click="showLeaveModal = false">Cancel</button>
-            </template>
-        </BModal>
+            <button class="btn btn-danger" :disabled="saving" @click="leaveWithDiscard">Discard changes</button>
+            <button class="btn btn-secondary" :disabled="saving" @click="showLeaveModal = false">Cancel</button>
+        </template>
+    </BModal>
 
-        <BendDialog v-model="showBend" @apply="applyBendPreset" />
-        <BarSettingsDialog v-model="showBarSettings" :initial="barSettingsInitial" @apply="applyBarSettings" />
-        <TrackManagerDialog
-            v-model="showTracks"
-            :tracks="trackList"
-            :currentIndex="trackIndex"
-            @switchTrack="switchTrack"
-            @addTrack="addTrack"
-            @removeTrack="removeTrack"
-            @retune="retune"
-        />
+    <BendDialog v-model="showBend" @apply="applyBendPreset" />
+    <BarSettingsDialog v-model="showBarSettings" :initial="barSettingsInitial" @apply="applyBarSettings" />
+    <TrackManagerDialog
+        v-model="showTracks"
+        :tracks="trackList"
+        :currentIndex="trackIndex"
+        @switchTrack="switchTrack"
+        @addTrack="addTrack"
+        @removeTrack="removeTrack"
+        @retune="retune"
+    />
 
-        <BModal v-model="showHelp" title="Keyboard shortcuts" size="lg" ok-only>
-            <div class="shortcuts">
-                <div v-for="(bindings, group) in keymapGroups" :key="group" class="mb-3">
-                    <h6>{{ group }}</h6>
-                    <table class="table table-sm table-dark">
-                        <tbody>
-                            <tr v-for="b in bindings" :key="b.keyLabel + b.command">
-                                <td class="key-label"><kbd>{{ b.keyLabel }}</kbd></td>
-                                <td>{{ b.description }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <p
-                    class="text-muted">Type digits (0–9) or numpad digits (NumLock on) to enter frets — two digits within a moment combine (1, 2 → 12). Use ↑/↓ to move between strings on the same beat.</p>
+    <BModal v-model="showHelp" title="Keyboard shortcuts" size="lg" ok-only>
+        <div class="shortcuts">
+            <div v-for="(bindings, group) in keymapGroups" :key="group" class="mb-3">
+                <h6>{{ group }}</h6>
+                <table class="table table-sm table-dark">
+                    <tbody>
+                        <tr v-for="b in bindings" :key="b.keyLabel + b.command">
+                            <td class="key-label"><kbd>{{ b.keyLabel }}</kbd></td>
+                            <td>{{ b.description }}</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
-        </BModal>
-    </div>
+            <p
+                class="text-muted">Type digits (0–9) or numpad digits (NumLock on) to enter frets — two digits within a moment combine (1, 2 → 12). Use ↑/↓ to move between strings on the same beat.</p>
+        </div>
+    </BModal>
 </template>
 
 <style lang="scss">
-// Not scoped: the overlay elements are created programmatically inside the alphaTab container.
-.tab-editor {
-    .editor-main {
+@import "../styles/vars.scss";
+
+// Not scoped: overlay elements are created inside the alphaTab container.
+.score-sheet {
+    width: 100%;
+    max-width: 900px;
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+    min-height: 200px;
+    position: relative;
+
+    .score-sheet-inner {
+        padding: 8px 4px 16px;
+    }
+}
+
+.editor-left-rail {
+    padding: 44px 12px 16px;
+
+    .voice-strip {
         display: flex;
-        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid $st-border;
     }
 
-    .score-area {
+    .voice-btn {
+        min-width: 34px;
+        height: 28px;
+        padding: 0 8px;
+        border-radius: 6px;
+        border: 1px solid $st-border-2;
+        background: $st-panel-2;
+        color: $st-text-muted;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+
+        &.active {
+            background: rgba(91, 110, 245, 0.15);
+            border-color: $st-accent;
+            color: $st-accent;
+        }
+        &:disabled {
+            opacity: 0.45;
+            cursor: default;
+        }
+    }
+}
+
+.bottom-grid-wrap {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+
+    .nav-area {
         flex: 1;
-        min-width: 0;
-        // keep the last bars reachable above the fixed bottom panel
-        margin: 0 15px 110px 15px;
-        position: relative;
+        min-height: 0;
     }
 
-    .editor-bottom {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        z-index: 20;
-        display: flex;
-        flex-direction: column;
-        background-color: #101418;
-        border-top: 1px solid #222;
+    .editor-status-strip {
+        flex: none;
+        border-top: 1px solid $st-border;
+        background: $st-rail-bg;
+        padding: 5px 14px;
+        font-size: 12px;
+        color: $st-text-muted;
     }
+}
 
+.tab-editor,
+.score-sheet {
     .editor-beat-cursor {
         position: absolute;
         display: none;

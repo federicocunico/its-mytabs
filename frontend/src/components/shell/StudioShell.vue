@@ -131,7 +131,9 @@ export default defineComponent({
         <aside class="st-rail st-left" :class="{ collapsed: !leftOpen }">
             <template v-if="leftOpen">
                 <button class="st-collapse st-collapse--left" title="Collapse panel" @click="toggleLeft">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6" /></svg>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M15 6l-6 6 6 6" />
+                    </svg>
                 </button>
                 <div class="st-rail-body">
                     <slot name="left" />
@@ -139,7 +141,9 @@ export default defineComponent({
                 <div class="st-resize st-resize--right" title="Drag to resize" @mousedown="startDrag('left', $event)"></div>
             </template>
             <button v-else class="st-expand" title="Expand tools" @click="toggleLeft">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 6l6 6-6 6" />
+                </svg>
             </button>
         </aside>
 
@@ -153,14 +157,18 @@ export default defineComponent({
             <template v-if="rightOpen">
                 <div class="st-resize st-resize--left" title="Drag to resize" @mousedown="startDrag('right', $event)"></div>
                 <button class="st-collapse st-collapse--right" title="Collapse panel" @click="toggleRight">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6 6 6" /></svg>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 6l6 6 6 6" />
+                    </svg>
                 </button>
                 <div class="st-rail-body">
                     <slot name="right" />
                 </div>
             </template>
             <button v-else class="st-expand" title="Expand mixer" @click="toggleRight">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6" /></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M15 6l-6 6 6 6" />
+                </svg>
             </button>
         </aside>
 

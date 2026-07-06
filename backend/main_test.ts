@@ -12,11 +12,16 @@ async function setupTest() {
 
 const tempDir = await setupTest();
 
-// Ensure minimal frontend dist/index.html exists so main() won't exit
+// Ensure minimal frontend dist/index.html exists so main() won't exit.
+// Never clobber a real build — only create (and later remove) the stub when
+// the repo has no built frontend.
 const distDir = path.join("./", "dist");
-await fs.ensureDir(distDir);
 const indexPath = path.join(distDir, "index.html");
-await Deno.writeTextFile(indexPath, "<html><head></head><body>test</body></html>");
+const createdStubIndex = !(await fs.exists(indexPath));
+if (createdStubIndex) {
+    await fs.ensureDir(distDir);
+    await Deno.writeTextFile(indexPath, "<html><head></head><body>test</body></html>");
+}
 
 // Now import functions after env setup
 const { createTab, addAudio, getConfigJSON, updateConfigJSON } = await import("./tab.ts");
@@ -288,11 +293,13 @@ Deno.test({
 Deno.test.afterAll(async () => {
     closeServer();
 
-    try {
-        await Deno.remove(indexPath);
-        await Deno.remove(distDir);
-    } catch {
-        // ignore
+    if (createdStubIndex) {
+        try {
+            await Deno.remove(indexPath);
+            await Deno.remove(distDir);
+        } catch {
+            // ignore
+        }
     }
 
     await fs.emptyDir(tempDir);

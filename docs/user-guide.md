@@ -32,27 +32,42 @@ Uploaded tabs open in the player. Blank tabs open in the editor.
 
 ## Tab player
 
-Open any tab to see the score and a toolbar fixed to the bottom of the screen (it can auto-hide — see [Player settings](#player-settings)).
+Opening a tab lands you in **MyTabs Studio** — a Guitar-Pro-style workspace: a top bar (song info, key/tempo/time-signature badges, **Player | Edit** switch), a left rail (sections + view options),
+the score on a **white sheet** in the middle, a docked **mixer** on the right, and a **multi-track bar navigator** with the transport at the bottom. Only the score pane scrolls.
 
-### Tracks
+Every panel is collapsible (chevron buttons) and resizable (drag the seams); your layout is remembered across reloads.
 
-Click the track name in the toolbar to open the track list. For each track you can:
+### Left rail — sections & view
 
-- **Select** the track to display
-- **Solo** — hear only that track
-- **Mute** — silence that track
-- Adjust **Volume** (percentage)
+- **Sections** — the score's sections (Intro, Verse, Chorus…) with their bar ranges; click one to jump there.
+- **View** — switch between **Tab** and **Score+Tab** notation.
+- **Color notes** — toggle string-color coding of fret numbers on/off.
 
-### Playback controls
+### Mixer (right rail)
 
-| Control          | Description                                                                 |
-| ---------------- | --------------------------------------------------------------------------- |
-| **Play / Pause** | Start or stop playback                                                      |
-| **Loop**         | Repeat the current [highlighted range](#looping-and-practice-ranges)        |
-| **Count in**     | One-bar count-in before playback (synth only)                               |
-| **Metronome**    | Click track during playback (synth only)                                    |
-| **Speed**        | Playback speed as a percentage (e.g. 75 = 75%)                              |
-| **Restart**      | Appears when a range is highlighted — plays from the start of the selection |
+One card per track:
+
+- **Select** a card to display that track in the score
+- **S** — solo (hear only that track) · **M** — mute
+- **Volume** slider (percentage) per track, plus a **Master** slider at the top
+
+### Bar navigator (bottom)
+
+A Guitar-Pro-style arrangement overview: one row per track, one column per bar, with colored blocks where the track has notes and a section lane on top. **Click any bar cell to jump there.** The white
+playhead line follows playback, muted/soloed tracks show `M`/`S` flags, and the loop range is shaded while looping.
+
+### Playback controls (transport)
+
+| Control           | Description                                                                 |
+| ----------------- | --------------------------------------------------------------------------- |
+| **Play / Pause**  | Start or stop playback (the button turns amber while playing)               |
+| **⏮ / ⏭**         | Jump to the start / end of the score                                        |
+| **Loop**          | Repeat the current [highlighted range](#looping-and-practice-ranges)        |
+| **Metronome**     | Click track during playback (synth only)                                    |
+| **Count in**      | One-bar count-in before playback (synth only)                               |
+| **Speed**         | Playback-speed slider with % readout (20–1000%)                             |
+| **Time**          | Current / total time readout                                                |
+| **Restart range** | Appears when a range is highlighted — plays from the start of the selection |
 
 ### Looping and practice ranges
 
@@ -66,7 +81,7 @@ If nothing is highlighted, **↑** and **S** jump to the first bar with notes (w
 
 ### Audio source
 
-Click **Audio** in the toolbar to choose:
+Click the audio-source button at the **bottom-left of the transport** to choose:
 
 | Source                     | Description                                                               |
 | -------------------------- | ------------------------------------------------------------------------- |
@@ -82,8 +97,8 @@ When YouTube or an audio file is active, a **Sync Offset** field appears below t
 
 When logged in:
 
-- **Edit Score** — open the built-in score editor for the current track (drum tracks cannot be edited yet)
-- **Details** — manage tab info, audio sources, sync settings, and the tab file
+- **Edit** (top-bar Player | Edit switch) — open the built-in score editor for the current track (drum tracks cannot be edited yet)
+- **⋮ menu** (top bar) — **Tab details…** (info, tab file) and **Youtube & audio files…** (audio sources, sync settings)
 
 ---
 
@@ -133,14 +148,14 @@ Open **Settings** from the navigation bar. Changes are saved to your browser aut
 
 ### Tab player
 
-| Setting                      | Options                                                          |
-| ---------------------------- | ---------------------------------------------------------------- |
-| **Style**                    | Tab, Score, Tab + Score, Horizontal Tab                          |
-| **Tab/Score Color**          | Light, Dark                                                      |
-| **Display Scale**            | 80% – 300%                                                       |
-| **Scroll**                   | Scroll, Off, Smooth Scroll (forced to Smooth for Horizontal Tab) |
-| **Show Key Signature**       | Yes / No                                                         |
-| **Auto-hide bottom toolbar** | Yes / No                                                         |
+| Setting                | Options                                                          |
+| ---------------------- | ---------------------------------------------------------------- |
+| **Style**              | Tab, Score, Tab + Score, Horizontal Tab                          |
+| **Display Scale**      | 80% – 300%                                                       |
+| **Scroll**             | Scroll, Off, Smooth Scroll (forced to Smooth for Horizontal Tab) |
+| **Show Key Signature** | Yes / No                                                         |
+
+The notation always renders on a white sheet inside the dark Studio chrome, so there is no separate light/dark score-color setting anymore.
 
 ### Assists
 
@@ -180,27 +195,30 @@ Open the editor with **Edit Score** on the player page, or create a blank tab fr
 The editor saves in Guitar Pro (`.gp`) format. Editing a `.gp3` / `.gp4` / `.gp5` / `.gpx` / MusicXML tab converts it to `.gp` on first save. A timestamped backup of the previous file is kept on the
 server (up to 10 backups).
 
-### Toolbar
+### Editor layout
 
-| Control                    | Description                                   |
-| -------------------------- | --------------------------------------------- |
-| **←**                      | Return to the player                          |
-| **Undo / Redo**            | Step through edit history                     |
-| **Duration picker**        | Set note length and dots                      |
-| **Rest (R)** / **Tie (L)** | Toggle rest or tie to previous note           |
-| **+Bar / −Bar / +Beat**    | Insert or delete bars and beats               |
-| **Bar…**                   | Edit the current bar (see below)              |
-| **Tracks…**                | Switch, add, remove, or re-tune tracks        |
-| **V1 / V2 / …**            | Switch voice when the bar has multiple voices |
-| **Play**                   | Preview from the cursor                       |
-| **Save**                   | Save to server                                |
-| **⋮ menu**                 | Download `.gp`, keyboard shortcuts, exit      |
+The editor uses the same Studio shell as the player — top bar, left tool palette, white score sheet, mixer, bar navigator + transport. Differences in editor mode:
 
-A second row of buttons provides quick access to note effects (hammer-on, palm mute, bends, slides, vibrato, harmonics, etc.) — the same actions are available via keyboard shortcuts.
+| Where            | Control                    | Description                                                            |
+| ---------------- | -------------------------- | ---------------------------------------------------------------------- |
+| Top bar          | **Player \| Edit** switch  | Return to the player (asks about unsaved changes)                      |
+| Top bar          | **Undo / Redo**            | Step through edit history                                              |
+| Top bar          | **Save**                   | Save to server (dot = unsaved changes)                                 |
+| Top bar          | **⋮ menu**                 | Tracks…, Download `.gp`, keyboard shortcuts                            |
+| Left palette     | **V1 / V2 / …**            | Switch voice when the bar has multiple voices                          |
+| Left palette     | **Duration**               | Set note length and dots                                               |
+| Left palette     | **Rest (R)** / **Tie (L)** | Toggle rest or tie to previous note                                    |
+| Left palette     | **Note / Beat effects**    | Hammer-on, palm mute, bends, slides, vibrato, harmonics, tap, grace, … |
+| Left palette     | **+Bar / Append / −Bar**   | Insert, append or delete bars                                          |
+| Left palette     | **Bar…**                   | Edit the current bar (see below)                                       |
+| Bottom navigator | Bar cells / track rows     | Jump the cursor to any bar; switch the edited track                    |
+| Transport        | **Play**                   | Preview from the cursor                                                |
 
-### Status bar
+Every palette button shows its keyboard shortcut on a small chip — the same actions are available via [keyboard shortcuts](#editor-keyboard-shortcuts).
 
-The bar at the bottom shows the current bar/beat, string, pending fret digits, duration, and **bar fill** (how full the bar is vs. its time signature). Overfilled bars are shown in red.
+### Status strip
+
+The thin strip above the transport shows the current bar/beat, string, pending fret digits, duration, and **bar fill** (how full the bar is vs. its time signature). Overfilled bars are shown in red.
 
 ### Bar settings (Bar…)
 
@@ -214,6 +232,8 @@ Edit properties of the bar at the cursor:
 - Section name (e.g. "Chorus")
 
 ### Tracks (Tracks…)
+
+Open from the top-bar **⋮ menu → Tracks…** or the mixer's **Add track** button:
 
 - **Switch** which track you are editing
 - **Add** a new track (guitar or bass presets)

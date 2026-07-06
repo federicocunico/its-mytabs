@@ -94,9 +94,7 @@ export default defineComponent({
             return false;
         },
         chipStyle(item, accent) {
-            return this.isActive(item)
-                ? { background: accent, borderColor: accent, color: "#fff", boxShadow: `0 2px 8px ${accent}55` }
-                : {};
+            return this.isActive(item) ? { background: accent, borderColor: accent, color: "#fff", boxShadow: `0 2px 8px ${accent}55` } : {};
         },
     },
 });

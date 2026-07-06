@@ -4,9 +4,16 @@ import { buildDisplayResources, getFileURL, getStaveProfile, getTempToken } from
 import { defineComponent } from "vue";
 import { BDropdown, BDropdownDivider, BDropdownItem } from "bootstrap-vue-next";
 import { notify } from "@kyvg/vue3-notification";
-import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { isLoggedIn } from "../auth-client.js";
 import { getKeySignature } from "../util.ts";
+import { STRING_COLORS_LIGHT, trackColor } from "../styles/colors.ts";
+import { barIndexFromTick, buildPresenceMatrix, buildSections, formatTimeMs, loopBarSpan, scoreEndTick, tickToMs } from "../studio/score-nav.ts";
+import StudioShell from "../components/shell/StudioShell.vue";
+import StudioTopBar from "../components/shell/StudioTopBar.vue";
+import SectionsNav from "../components/player/SectionsNav.vue";
+import MixerPanel from "../components/studio/MixerPanel.vue";
+import TrackNavigator from "../components/studio/TrackNavigator.vue";
+import TransportBar from "../components/studio/TransportBar.vue";
 
 const alphaTab = await import("@coderline/alphatab");
 const { ScrollMode, StaveProfile } = alphaTab;
@@ -32,7 +39,17 @@ export default defineComponent({
 
     youtubePlayer: null,
 
-    components: { FontAwesomeIcon, BDropdownDivider, BDropdownItem, BDropdown },
+    components: {
+        StudioShell,
+        StudioTopBar,
+        SectionsNav,
+        MixerPanel,
+        TrackNavigator,
+        TransportBar,
+        BDropdownDivider,
+        BDropdownItem,
+        BDropdown,
+    },
     emits: ["setFixedHeader"],
     data() {
         return {
@@ -42,8 +59,24 @@ export default defineComponent({
             youtube: {},
             tabID: -1,
             tracks: [],
-            showTrackList: false,
             showAudioList: false,
+            masterVolume: 100,
+            trackVolumes: {},
+            studio: {
+                presence: [],
+                sections: [],
+                playhead: 0,
+                navCurrentBar: 0,
+                timeCur: "0:00",
+                timeTotal: "0:00",
+            },
+            topBarState: {
+                dirty: false,
+                canUndo: false,
+                canRedo: false,
+                saving: false,
+            },
+            _savedNoteColor: "rocksmith",
             tab: {},
             playing: false,
             enableCountIn: false,
@@ -93,10 +126,79 @@ export default defineComponent({
             },
             setting: {},
             simpleSyncSecond: -1,
-            toolbarAutoHide: false,
         };
     },
     computed: {
+        isDemo() {
+            return window.isDemo === true;
+        },
+
+        noteColorOn() {
+            return this.setting.noteColor !== "none";
+        },
+
+        audioLabel() {
+            if (this.currentAudio === "synth") {
+                return "Synth";
+            }
+            if (this.currentAudio === "backingTrack") {
+                return "Backing";
+            }
+            if (this.currentAudio === "none") {
+                return "No audio";
+            }
+            if (this.currentAudio.startsWith("youtube-")) {
+                return "YouTube";
+            }
+            if (this.currentAudio.startsWith("audio-")) {
+                return this.currentAudio.substring(6);
+            }
+            return "Audio";
+        },
+
+        studioBadges() {
+            if (!this.api?.score) {
+                return { keyBadge: "", tempo: null, timeSignature: "" };
+            }
+            const mb = this.api.score.masterBars[0];
+            return {
+                keyBadge: this.keySignature && this.setting.showKeySignature ? this.keySignature : "",
+                tempo: mb?.tempoAutomations[0] ? Math.round(mb.tempoAutomations[0].value) : null,
+                timeSignature: mb ? `${mb.timeSignatureNumerator}/${mb.timeSignatureDenominator}` : "",
+            };
+        },
+
+        mixerTracks() {
+            if (!this.api?.score) {
+                return [];
+            }
+            return this.api.score.tracks.map((t, i) => ({
+                index: i,
+                name: t.name || getInstrumentName(t.playbackInfo.program),
+                instrument: getInstrumentName(t.playbackInfo.program),
+                color: trackColor(i),
+                solo: this.soloTrackID === i,
+                mute: !!this.muteTrackList[i],
+                volume: this.trackVolumes[i] ?? 100,
+                selected: this.selectedTrack === i,
+            }));
+        },
+
+        navBarCount() {
+            return this.api?.score?.masterBars.length ?? 0;
+        },
+
+        navLoop() {
+            if (!this.isLooping || !this.api?.score) {
+                return null;
+            }
+            if (this.playbackRange) {
+                return loopBarSpan(this.api.score, this.playbackRange);
+            }
+            const last = this.navBarCount - 1;
+            return last >= 0 ? { start: 0, end: last } : null;
+        },
+
         isDrumTrackSelected() {
             // `ready` and `selectedTrack` are reactive; isDrum() reads the non-reactive api
             return this.ready && this.selectedTrack >= 0 && this.isDrum();
@@ -198,9 +300,12 @@ export default defineComponent({
                     return;
                 }
                 requestWakeLock();
+                this.startTransportPoll();
             } else {
                 this.api.pause();
                 releaseWakeLock();
+                this.stopTransportPoll();
+                this.refreshTransportPosition();
             }
 
             // Hide the cursor when playing
@@ -326,7 +431,7 @@ export default defineComponent({
     async mounted() {
         this.isLoggedIn = await isLoggedIn();
         this.setting = getSetting();
-        this.toolbarHidden = this.setting.toolbarAutoHide;
+        this._savedNoteColor = this.setting.noteColor !== "none" ? this.setting.noteColor : "rocksmith";
         this.tabID = this.$route.params.id;
         const urlParams = new URLSearchParams(window.location.search);
 
@@ -353,23 +458,13 @@ export default defineComponent({
 
             window.addEventListener("keydown", this.keyEvents);
 
-            // Close open lists when clicking outside
+            // Close audio dropdown when clicking outside
             this._onDocumentClick = (e) => {
                 try {
-                    // Track list
-                    if (this.showTrackList) {
-                        const sel = this.$refs.trackSelector;
-                        const list = this.$refs.trackList;
-                        if (!sel.contains(e.target) && !list.contains(e.target)) {
-                            this.showTrackList = false;
-                        }
-                    }
-
-                    // Audio list
                     if (this.showAudioList) {
                         const sel = this.$refs.audioSelector;
                         const list = this.$refs.audioList;
-                        if (!sel.contains(e.target) && !list.contains(e.target)) {
+                        if (sel && list && !sel.contains(e.target) && !list.contains(e.target)) {
                             this.showAudioList = false;
                         }
                     }
@@ -392,6 +487,7 @@ export default defineComponent({
     },
     beforeUnmount() {
         console.log("Before unmount");
+        this.stopTransportPoll();
         this.destroyContainer();
         window.removeEventListener("keydown", this.keyEvents);
 
@@ -717,6 +813,10 @@ export default defineComponent({
 
                     this.selectedTrack = trackID;
 
+                    this.initTrackVolumes(score);
+                    this.rebuildNavigatorData();
+                    this.api.masterVolume = this.masterVolume / 100;
+
                     // Force score+tab if the current track program = 0 (probably drums)
                     if (this.isDrum()) {
                         this.api.settings.display.staveProfile = StaveProfile.ScoreTab;
@@ -729,6 +829,7 @@ export default defineComponent({
                     this.enableBackingTrack = this.hasBackingTrack();
 
                     this.ready = true;
+                    this.refreshTransportPosition();
                     resolve(trackID);
                 });
 
@@ -776,33 +877,27 @@ export default defineComponent({
 
         // Style the score with custom colors
         applyColors(score) {
-            let stringColors = {
-                1: alphaTab.model.Color.fromJson("#bf3732"),
-                2: alphaTab.model.Color.fromJson("#fff800"),
-                3: alphaTab.model.Color.fromJson("#0080ff"),
-                4: alphaTab.model.Color.fromJson("#e07b39"),
-                5: alphaTab.model.Color.fromJson("#2A8E08"),
-                6: alphaTab.model.Color.fromJson("#A349A4"),
-            };
-
-            if (this.setting.scoreColor === "light") {
-                stringColors[2] = alphaTab.model.Color.fromJson("#b5a33a");
+            let stringColors = {};
+            for (const [k, v] of Object.entries(STRING_COLORS_LIGHT)) {
+                stringColors[k] = alphaTab.model.Color.fromJson(v);
             }
 
             // traverse hierarchy and apply colors as desired
             for (const track of score.tracks) {
                 for (const staff of track.staves) {
-                    console.log(this.setting.noteColor, staff.stringTuning.tunings.length);
-
                     // Coloring 5string bass line for louis-bass-v
                     if (this.setting.noteColor === "louis-bass-v" && staff.stringTuning.tunings.length === 5) {
-                        stringColors = {
-                            1: alphaTab.model.Color.fromJson("#b1da68"),
-                            2: alphaTab.model.Color.fromJson("#bf3732"),
-                            3: alphaTab.model.Color.fromJson("#fff800"),
-                            4: alphaTab.model.Color.fromJson("#0080ff"),
-                            5: alphaTab.model.Color.fromJson("#e07b39"),
+                        const louis = {
+                            1: "#b1da68",
+                            2: "#bf3732",
+                            3: "#c98a00",
+                            4: "#1173d4",
+                            5: "#e07b39",
                         };
+                        stringColors = {};
+                        for (const [k, v] of Object.entries(louis)) {
+                            stringColors[k] = alphaTab.model.Color.fromJson(v);
+                        }
                     }
 
                     for (const bar of staff.bars) {
@@ -1288,21 +1383,18 @@ export default defineComponent({
                 this.setConfig("trackID", trackID);
             }
 
+            this.rebuildNavigatorData();
+            this.refreshTransportPosition();
             this.closeAllList();
         },
 
         showList(type) {
-            if (type === "track") {
-                this.showTrackList = !this.showTrackList;
-                this.showAudioList = false;
-            } else if (type === "audio") {
+            if (type === "audio") {
                 this.showAudioList = !this.showAudioList;
-                this.showTrackList = false;
             }
         },
 
         closeAllList() {
-            this.showTrackList = false;
             this.showAudioList = false;
         },
 
@@ -1352,16 +1444,192 @@ export default defineComponent({
             if (!this.api) {
                 return;
             }
+            this.trackVolumes[trackID] = volume;
             const track = this.api.score.tracks.find(({ index }) => index === trackID);
             this.api.changeTrackVolume(track, volume / 100);
+        },
+
+        setTrackVolume({ index, value }) {
+            this.toggleVolume(index, value);
+        },
+
+        setMasterVolume(value) {
+            this.masterVolume = value;
+            if (this.api) {
+                this.api.masterVolume = value / 100;
+            }
+        },
+
+        initTrackVolumes(score) {
+            // changeTrackVolume takes a multiplier relative to the file's own
+            // track volume, so every slider starts at 100%.
+            const volumes = {};
+            score.tracks.forEach((t, i) => {
+                volumes[i] = 100;
+            });
+            this.trackVolumes = volumes;
+        },
+
+        rebuildNavigatorData() {
+            if (!this.api?.score) {
+                return;
+            }
+            const score = this.api.score;
+            this.studio.presence = buildPresenceMatrix(score);
+            this.studio.sections = buildSections(score.masterBars);
+            score.tracks.forEach((t, i) => {
+                if (this.trackVolumes[i] === undefined) {
+                    this.trackVolumes[i] = 100;
+                }
+            });
+            const end = scoreEndTick(score);
+            this.studio.timeTotal = formatTimeMs(tickToMs(score, end));
+        },
+
+        refreshTransportPosition() {
+            if (!this.api?.score) {
+                return;
+            }
+            const score = this.api.score;
+            const tick = Number(this.api.tickPosition ?? 0);
+            const end = scoreEndTick(score);
+            this.studio.playhead = end > 0 ? tick / end : 0;
+            this.studio.navCurrentBar = barIndexFromTick(score, tick);
+            this.studio.timeCur = formatTimeMs(tickToMs(score, tick));
+        },
+
+        startTransportPoll() {
+            this.stopTransportPoll();
+            const tick = () => {
+                this.refreshTransportPosition();
+                if (this.playing) {
+                    this._transportRaf = requestAnimationFrame(tick);
+                }
+            };
+            this._transportRaf = requestAnimationFrame(tick);
+        },
+
+        stopTransportPoll() {
+            if (this._transportRaf) {
+                cancelAnimationFrame(this._transportRaf);
+                this._transportRaf = null;
+            }
+        },
+
+        seekToBar(barIndex) {
+            if (!this.api?.score) {
+                return;
+            }
+            const masterBar = this.api.score.masterBars[barIndex];
+            if (!masterBar) {
+                return;
+            }
+            this.api.tickPosition = masterBar.start ?? 0;
+            this.refreshTransportPosition();
+        },
+
+        seekToSection(startBar) {
+            if (!this.api?.score) {
+                return;
+            }
+            const track = this.api.score.tracks[this.selectedTrack];
+            const bar = track.staves[0]?.bars[startBar];
+            const beat = bar?.voices[0]?.beats[0];
+            if (beat) {
+                this.api.tickPosition = beat.absoluteDisplayStart;
+                this.refreshTransportPosition();
+            }
+        },
+
+        transportToStart() {
+            if (!this.api?.score) {
+                return;
+            }
+            this.api.tickPosition = 0;
+            this.refreshTransportPosition();
+        },
+
+        transportToEnd() {
+            if (!this.api?.score) {
+                return;
+            }
+            this.api.tickPosition = scoreEndTick(this.api.score);
+            this.refreshTransportPosition();
+        },
+
+        setSpeed(value) {
+            this.speed = value;
+        },
+
+        persistSetting() {
+            localStorage.setItem("userSetting", JSON.stringify(this.setting));
+        },
+
+        setScoreStyle(style) {
+            if (this.setting.scoreStyle === style) {
+                return;
+            }
+            this.setting.scoreStyle = style;
+            this.persistSetting();
+            if (!this.api?.score) {
+                return;
+            }
+            this.api.settings.display.staveProfile = this.getStaveProfile();
+            if (!this.isDrum()) {
+                this.overrideHiddenStaves(this.api.score);
+            }
+            this.api.updateSettings();
+            this.api.renderTracks([this.api.score.tracks[this.selectedTrack]]);
+        },
+
+        toggleNoteColor(on) {
+            if (on) {
+                this.setting.noteColor = this._savedNoteColor || "rocksmith";
+            } else {
+                if (this.setting.noteColor !== "none") {
+                    this._savedNoteColor = this.setting.noteColor;
+                }
+                this.setting.noteColor = "none";
+            }
+            this.persistSetting();
+            if (!this.api?.score) {
+                return;
+            }
+            this.applyColors(this.api.score);
+            this.api.renderTracks([this.api.score.tracks[this.selectedTrack]]);
+        },
+
+        goToLibrary() {
+            this.$router.push("/");
+        },
+
+        goToEditor() {
+            if (this.isDrumTrackSelected || this.isDemo) {
+                return;
+            }
+            this.$router.push(`/tab/${this.tabID}/editor?track=${this.selectedTrack}`);
+        },
+
+        onSwitchMode(mode) {
+            if (mode === "editor") {
+                this.goToEditor();
+            }
+        },
+
+        onTopBarCommand(name) {
+            if (name === "editDetails") {
+                this.$router.push(`/tab/${this.tabID}/edit/info`);
+            } else if (name === "editAudio") {
+                this.$router.push(`/tab/${this.tabID}/edit/audio`);
+            }
         },
 
         edit() {
             this.$router.push(`/tab/${this.tabID}/edit/info`);
         },
 
-        editScore() {
-            this.$router.push(`/tab/${this.tabID}/editor?track=${this.selectedTrack}`);
+        onMixerAddTrack() {
+            this.edit();
         },
 
         hasBackingTrack() {
@@ -1461,415 +1729,292 @@ export default defineComponent({
 </script>
 
 <template>
-    <div class="main" :class='{ "light": this.setting.scoreColor === "light" }'>
-        <h1>{{ tab.title }}</h1>
-        <h2>{{ tab.artist }}</h2>
-        <div class="key-signature badge bg-secondary" v-if="keySignature && setting.showKeySignature">
-            {{ keySignature }}
-        </div>
-        <div ref="bassTabContainer" v-pre></div>
+    <StudioShell>
+        <template #top>
+            <StudioTopBar
+                mode="player"
+                :title="tab.title || 'Untitled'"
+                :artist="tab.artist || ''"
+                :key-badge="studioBadges.keyBadge"
+                :tempo="studioBadges.tempo"
+                :time-signature="studioBadges.timeSignature"
+                :state="topBarState"
+                :edit-disabled="isDrumTrackSelected || isDemo"
+                :edit-disabled-title="isDemo ? 'Editor is disabled in demo mode' : 'Drum tracks cannot be edited yet'"
+                :show-details="isLoggedIn && !isDemo"
+                @back="goToLibrary"
+                @switch-mode="onSwitchMode"
+                @command="onTopBarCommand"
+            />
+        </template>
 
-        <!-- Just add a margin, don't let youtube player overlay the tab -->
-        <div :class='{ "yt-margin": currentAudio.startsWith(`youtube-`) }'></div>
+        <template #left>
+            <SectionsNav
+                v-if="ready"
+                :sections="studio.sections"
+                :score-style="setting.scoreStyle"
+                :note-color-on="noteColorOn"
+                @seek-section="seekToSection"
+                @set-score-style="setScoreStyle"
+                @toggle-note-color="toggleNoteColor"
+            />
+        </template>
 
-        <div class="toolbar" :class='{ "auto-hide": setting.toolbarAutoHide }'>
-            <div class="scroll">
-                <div class="track-selector selector" ref="trackSelector">
-                    <div class="button" @click='showList("track")'>
-                        <span v-if="tracks.length > 0">{{ tracks[selectedTrack].name }}</span>
-                        <span v-else>Loading...</span>
-                    </div>
-                </div>
-
-                <div class="audio-selector selector" ref="audioSelector">
-                    <div class="button" @click='showList("audio")'>
-                        Audio
-                    </div>
-                </div>
-
-                <button class="btn btn-warning" @click="playFromHighlightedRange()" v-if="playbackRange">
-                    <font-awesome-icon :icon='["fas", "play"]' />
-                    Restart
-                </button>
-
-                <button class="btn btn-primary" @click="playPause" :class="{ active: playing }">
-                    <span v-if="!playing">
-                        <font-awesome-icon :icon='["fas", "play"]' />
-                        Play
-                    </span>
-                    <span v-else>
-                        <font-awesome-icon :icon='["fas", "pause"]' />
-                        Pause
-                    </span>
-                </button>
-                <button class="btn btn-secondary" @click="loop()" :class="{ active: isLooping }">
-                    <font-awesome-icon :icon='["fas", "check"]' v-if="isLooping" />
-                    Loop
-                </button>
-                <button class="btn btn-secondary" @click="countIn()" :class='{ active: enableCountIn, disabled: currentAudio !== "synth" }'>
-                    <font-awesome-icon :icon='["fas", "check"]' v-if="enableCountIn" />
-                    Count in
-                </button>
-                <button class="btn btn-secondary" @click="metronome()" :class='{ active: enableMetronome, disabled: currentAudio !== "synth" }'>
-                    <font-awesome-icon :icon='["fas", "check"]' v-if="enableMetronome" />
-                    Metronome
-                </button>
-
-                <div class="select-percentage">
-                    Speed: <input type="number" class="form-control" min="0" max="1000" step="1" v-model="speed" /> (%)
-                </div>
-
-                <div class="btn-edit" v-if="isLoggedIn">
-                    <button class="btn btn-secondary" @click="editScore()" :disabled="isDrumTrackSelected" :title='isDrumTrackSelected ? "Drum tracks cannot be edited yet" : "Open the score editor"'>
-                        <font-awesome-icon :icon='["fas", "pen"]' />
-                        Edit Score
-                    </button>
-                    <button class="btn btn-secondary" @click="edit()">
-                        Details
-                    </button>
-                </div>
+        <template #score>
+            <div class="score-sheet">
+                <div ref="bassTabContainer" v-pre class="score-sheet-inner"></div>
             </div>
+        </template>
 
-            <div class="track-list list" v-if="showTrackList" ref="trackList">
-                <div class="p-2 text-end list-header">
-                    <font-awesome-icon :icon='["fas", "xmark"]' class="me-2 close" @click="showTrackList = false" />
+        <template #right>
+            <MixerPanel
+                v-if="ready"
+                :tracks="mixerTracks"
+                :master="masterVolume"
+                :playing="playing"
+                @select-track="changeTrack"
+                @toggle-solo="toggleSolo"
+                @toggle-mute="toggleMute"
+                @set-volume="setTrackVolume"
+                @set-master="setMasterVolume"
+                @add-track="onMixerAddTrack"
+            />
+        </template>
+
+        <template #bottomGrid>
+            <TrackNavigator
+                v-if="ready"
+                class="nav-area"
+                :tracks="mixerTracks"
+                :bar-count="navBarCount"
+                :presence="studio.presence"
+                :sections="studio.sections"
+                :current-bar="studio.navCurrentBar"
+                :playhead="studio.playhead"
+                :loop="navLoop"
+                @seek-bar="seekToBar"
+                @select-track="changeTrack"
+            />
+        </template>
+
+        <template #bottomBar="{ bottomOpen, toggleBottom }">
+            <div
+                v-show="currentAudio.startsWith('youtube-') || currentAudio.startsWith('audio-')"
+                class="player-dock"
+            >
+                <div class="sync-offset" v-if="syncMethod === 'simple' && isLoggedIn">
+                    Sync offset:
+                    <input type="number" class="form-control form-control-sm" min="-100000" max="100000" step="0.1" v-model="simpleSyncSecond" />
+                    s
                 </div>
-
-                <div class="track item" v-for="track in tracks" :key="track.id" :class="{ active: selectedTrack === track.id }">
-                    <div class="name" @click="changeTrack(track.id)">{{ track.name }}</div>
-                    <div class="list-button solo" @click="toggleSolo(track.id)" :class="{ active: soloTrackID === track.id }">Solo</div>
-                    <div class="list-button mute" @click="toggleMute(track.id)" :class="{ active: muteTrackList[track.id] }">Mute</div>
-                    <div class="list-button select-percentage">
-                        Volume: <input type="number" min="0" max="1000" step="1" value="100" @change="toggleVolume(track.id, $event.target.value)" /> (%)
-                    </div>
-                </div>
-            </div>
-
-            <div class="audio-list list" v-if="showAudioList" ref="audioList">
-                <div class="p-2 text-end list-header">
-                    <font-awesome-icon :icon='["fas", "xmark"]' class="me-2 close" @click="showAudioList = false" />
-                </div>
-
-                <div class="audio item" @click="audioSynth" :class='{ active: currentAudio === "synth" }'>
-                    <div class="name">Synth</div>
-                </div>
-
-                <div class="audio item" @click="audioBackingTrack" :class='{ active: currentAudio === "backingTrack" }' v-if="enableBackingTrack">
-                    <div class="name">Embedded Backing Track</div>
-                </div>
-
-                <div class="audio item" @click="audioYoutube(youtube.videoID)" v-for="youtube in youtubeList" :key="youtube.id" :class='{ active: currentAudio === "youtube-" + youtube.videoID }'>
-                    <div class="name">Youtube: {{ youtube.videoID }}</div>
-                </div>
-
-                <div class="audio item" @click="audioFile(audio.filename)" v-for="audio in audioList" :key="audio.filename" :class='{ active: currentAudio === "audio-" + audio.filename }'>
-                    <div class="name">{{ audio.filename }}</div>
-                </div>
-
-                <!-- No Audio -->
-                <div
-                    class="audio item"
-                    @click='currentAudio = "none";
-                    closeAllList()'
-                    :class='{ active: currentAudio === "none" }'
-                >
-                    <div class="name">No Audio (Mute)</div>
-                </div>
-
-                <div class="ms-4 me-4 mt-3 mb-3" v-if="isLoggedIn">
-                    <router-link :to="`/tab/${tab.id}/edit/audio`">Add Youtube or Audio File...</router-link>
-                </div>
-            </div>
-
-            <!-- USE v-show, because youtube player is not vue  -->
-            <div v-show='currentAudio.startsWith("youtube-") || currentAudio.startsWith("audio-")' class="player-container">
-                <!-- Simple sync edit -->
-                <div class="sync-offset ps-3 pe-3 p-2" v-if='syncMethod === "simple" && isLoggedIn'>
-                    Sync Offset: <input type="number" class="form-control" min="-100000" max="100000" step="0.1" v-model="simpleSyncSecond" /> s
-                </div>
-
-                <!-- Youtube Player -->
-                <div v-show='currentAudio.startsWith("youtube-")'>
+                <div v-show="currentAudio.startsWith('youtube-')">
                     <div ref="youtube" class="player"></div>
                 </div>
-
-                <!-- Audio Player -->
-                <audio ref="audioPlayer" class="player" controls v-show='currentAudio.startsWith("audio-")' hidden></audio>
+                <audio ref="audioPlayer" class="player" controls v-show="currentAudio.startsWith('audio-')" hidden></audio>
             </div>
-        </div>
-    </div>
+
+            <div class="audio-menu-wrap">
+                <TransportBar
+                    :playing="playing"
+                    :looping="isLooping"
+                    :metronome="enableMetronome"
+                    :count-in="enableCountIn"
+                    :speed="speed"
+                    :time-cur="studio.timeCur"
+                    :time-total="studio.timeTotal"
+                    :bottom-open="bottomOpen"
+                    :metronome-disabled="currentAudio !== 'synth'"
+                    :count-in-disabled="currentAudio !== 'synth'"
+                    @play-pause="playPause"
+                    @to-start="transportToStart"
+                    @to-end="transportToEnd"
+                    @toggle-loop="loop"
+                    @toggle-metronome="metronome"
+                    @toggle-count-in="countIn"
+                    @set-speed="setSpeed"
+                    @toggle-bottom="toggleBottom"
+                >
+                    <template #audioLeft>
+                        <div class="audio-selector" ref="audioSelector">
+                            <button type="button" class="audio-btn" @click.stop='showList("audio")'>
+                                {{ audioLabel }}
+                            </button>
+                            <div class="audio-list" v-if="showAudioList" ref="audioList" @click.stop>
+                                <div class="audio item" @click="audioSynth" :class='{ active: currentAudio === "synth" }'>
+                                    <div class="name">Synth</div>
+                                </div>
+                                <div class="audio item" @click="audioBackingTrack" :class='{ active: currentAudio === "backingTrack" }' v-if="enableBackingTrack">
+                                    <div class="name">Embedded Backing Track</div>
+                                </div>
+                                <div class="audio item" @click="audioYoutube(youtube.videoID)" v-for="youtube in youtubeList" :key="youtube.id"
+                                    :class='{ active: currentAudio === "youtube-" + youtube.videoID }'>
+                                    <div class="name">Youtube: {{ youtube.videoID }}</div>
+                                </div>
+                                <div class="audio item" @click="audioFile(audio.filename)" v-for="audio in audioList" :key="audio.filename"
+                                    :class='{ active: currentAudio === "audio-" + audio.filename }'>
+                                    <div class="name">{{ audio.filename }}</div>
+                                </div>
+                                <div
+                                    class="audio item"
+                                    @click='currentAudio = "none"; closeAllList()'
+                                    :class='{ active: currentAudio === "none" }'
+                                >
+                                    <div class="name">No Audio (Mute)</div>
+                                </div>
+                                <div class="audio-footer" v-if="isLoggedIn">
+                                    <router-link :to="`/tab/${tab.id}/edit/audio`" @click="closeAllList">Add Youtube or Audio File…</router-link>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </TransportBar>
+            </div>
+
+            <button
+                v-if="playbackRange"
+                type="button"
+                class="restart-btn"
+                title="Restart highlighted range"
+                @click="playFromHighlightedRange()"
+            >Restart range</button>
+        </template>
+    </StudioShell>
 </template>
 
-<style scoped lang="scss">
+<style lang="scss">
 @import "../styles/vars.scss";
 
-$toolbar-height: 60px;
-$youtube-height: 200px;
-
-// Light Score
-
-.main {
-    width: 95%;
-    color: #d6d6d6;
-    margin: 0 auto $toolbar-height auto;
-
-    &.light {
-        background-color: #f1f1f1;
-        padding-top: 30px;
-
-        h1,
-        h2 {
-            color: #333;
-        }
-    }
-}
-
-.yt-margin {
-    width: 1px;
-    height: $youtube-height !important;
-}
-
-.toolbar {
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid #3c3b40;
-    position: fixed;
-    bottom: 0;
-    left: 0;
+.score-sheet {
     width: 100%;
-    z-index: 1000;
+    max-width: 900px;
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+    min-height: 200px;
+    position: relative;
 
-    .light & {
-        background-color: rgba(33, 37, 41, 0.8);
+    .score-sheet-inner {
+        padding: 8px 4px 16px;
+    }
+}
+
+.nav-area {
+    height: 100%;
+}
+
+.player-dock {
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 0 16px 4px;
+
+    .player {
+        height: 140px;
     }
 
-    &.auto-hide {
-        transition: transform 0.3s;
-        transform: translateY(calc(100% - 5px));
-
-        &:hover {
-            transform: translateY(0);
-        }
-    }
-
-    // Allow horizontal scroll
-    .scroll {
-        padding: 8px 15px;
+    .sync-offset {
         display: flex;
         align-items: center;
-        flex-grow: 4;
-        column-gap: 10px;
+        gap: 6px;
+        font-size: 12px;
+        color: $st-text-muted;
+        background: $st-panel-2;
+        border: 1px solid $st-border;
+        border-radius: 8px;
+        padding: 6px 10px;
 
-        .btn-edit {
-            flex-grow: 1;
-            text-align: right;
-        }
-
-        .button,
-        .btn {
-            height: 44px;
-            white-space: nowrap;
-        }
-
-        .btn-secondary {
-            &.active {
-                //background-color: lighten($primary, 10%);
-            }
-        }
-
-        .close {
-            cursor: pointer;
-            &:hover {
-                color: white;
-            }
-        }
-    }
-
-    .player-container {
-        position: absolute;
-        bottom: 100%;
-        right: 0;
-        display: flex;
-
-        // align bottom
-        align-items: flex-end;
-
-        white-space: nowrap;
-
-        .player {
-            height: 180px;
-        }
-
-        .sync-offset {
-            color: white;
-            display: flex;
-            align-items: center;
-            background-color: $dark1;
-
-            input {
-                margin: 0 5px;
-                background-color: #32393e;
-                border: 1px solid #555b60;
-                color: white;
-            }
+        input {
+            width: 72px;
         }
     }
 }
 
-.youtube {
-    margin-top: 20px;
-}
-
-h1 {
-    text-align: center;
-    font-size: 45px;
-    font-weight: 300;
-    line-height: 45px;
-    word-break: break-word;
-}
-
-h2 {
-    text-align: center;
-    margin-bottom: 0;
-}
-
-$color: #32393e;
-$padding: 20px;
-
-.selector {
-    .button {
-        cursor: pointer;
-        padding: 10px 15px;
-        border-radius: 3px;
-        background-color: $color;
-        user-select: none;
-        transition: background-color 0.2s;
-        white-space: nowrap;
-
-        &:hover {
-            background-color: lighten($color, 10%);
-        }
-    }
-}
-
-.list {
-    position: absolute;
-    background-color: $color;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(10px);
-    border-radius: 3px;
-    bottom: $toolbar-height;
-    left: 15px;
-    min-width: 400px;
-    overflow: scroll;
-    max-height: calc(100vh - 90px);
-
-    // TODO: No matter how big it is, the tab cursor (z-index: 1000) is always on top of it for unknown reason.
-    z-index: 1;
-
-    .list-header {
-        position: sticky;
-        top: 0;
-        background-color: $color;
-        border-bottom: 1px solid darken($color, 5%);
-    }
-
-    .item {
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        border-bottom: 1px solid darken($color, 5%);
-
-        &.active {
-            background-color: lighten($color, 8%);
-        }
-
-        .name {
-            flex-grow: 1;
-            font-weight: bold;
-            padding: $padding;
-            height: 100%;
-            border-right: 1px solid darken($color, 5%);
-
-            &:hover {
-                background-color: lighten($color, 2%);
-            }
-        }
-    }
-}
-
-.track-list {
-    .track {
-        .list-button {
-            background-color: lighten($color, 10%);
-            border-right: 1px solid darken($color, 5%);
-            padding: $padding;
-            height: 100%;
-
-            &:hover {
-                background-color: lighten($primary, 5%);
-            }
-
-            &.active {
-                background-color: lighten($primary, 8%);
-            }
-        }
-    }
+.audio-menu-wrap {
+    position: relative;
 }
 
 .audio-selector {
     position: relative;
 }
 
-.track-selector {
-    position: relative;
-}
+.audio-btn {
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 9px;
+    border: 1px solid $st-border-2;
+    background: $st-panel-2;
+    color: $st-text;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 
-.select-percentage {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-
-    input {
-        min-width: 90px;
-        border: 0;
+    &:hover {
+        background: #232b34;
     }
 }
 
-.mobile {
-    h1 {
-        font-size: 20px;
-    }
-
-    h2 {
-        font-size: 16px;
-    }
-
-    .list {
-        width: 100%;
-        left: 0;
-    }
-
-    .toolbar {
-        .scroll {
-            overflow-x: scroll;
-        }
-
-        .player-container {
-            .sync-offset {
-                display: none;
-            }
-        }
-    }
-
-    .speed {
-        input {
-            width: 100px;
-        }
-    }
-}
-
-.key-signature {
+.audio-list {
     position: absolute;
-    margin-left: 30px;
+    bottom: calc(100% + 8px);
+    left: 0;
+    min-width: 280px;
+    max-height: 50vh;
+    overflow: auto;
+    background: $st-panel-2;
+    border: 1px solid $st-border;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    z-index: 40;
+
+    .item {
+        cursor: pointer;
+        padding: 12px 14px;
+        border-bottom: 1px solid $st-border;
+        font-size: 13px;
+        color: $st-text;
+
+        &:hover {
+            background: #232b34;
+        }
+        &.active {
+            background: rgba(91, 110, 245, 0.12);
+            color: $st-accent;
+        }
+    }
+
+    .audio-footer {
+        padding: 10px 14px;
+        font-size: 12px;
+
+        a {
+            color: $st-accent;
+            text-decoration: none;
+        }
+    }
+}
+
+.restart-btn {
+    position: absolute;
+    right: 16px;
+    bottom: 58px;
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid $st-border-2;
+    background: $st-panel-2;
+    color: $st-solo-amber;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 5;
+
+    &:hover {
+        background: #232b34;
+    }
 }
 </style>

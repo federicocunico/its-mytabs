@@ -97,13 +97,13 @@ test("full playback smoke: upload -> view -> edit -> save -> view", async ({ pag
     await test.step("edit a note, play again (rebuilt MIDI), save", async () => {
         await page.keyboard.press("5");
         // dirty indicator appears once the fret buffer commits
-        await expect(page.locator(".dirty-dot")).toBeVisible({ timeout: 10_000 });
+        await expect(page.locator(".tb-dirty")).toBeVisible({ timeout: 10_000 });
         await expectPlaybackAdvances(page, "editorApi");
 
         const saveResponse = page.waitForResponse((res) => res.request().method() === "POST" && /\/api\/tab\/\d+\//.test(res.url()), { timeout: 30_000 });
         await page.keyboard.press("Control+s");
         expect((await saveResponse).status(), "save request should succeed").toBe(200);
-        await expect(page.locator(".dirty-dot")).toBeHidden({ timeout: 10_000 });
+        await expect(page.locator(".tb-dirty")).toBeHidden({ timeout: 10_000 });
     });
 
     await test.step("viewer still plays the edited tab", async () => {
