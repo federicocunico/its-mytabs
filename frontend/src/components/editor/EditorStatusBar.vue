@@ -50,14 +50,8 @@ export default defineComponent({
 </template>
 
 <style scoped lang="scss">
+// Positioned by the parent .editor-bottom panel (TabEditor.vue)
 .editor-status-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 20;
-    background-color: #101418;
-    border-top: 1px solid #222;
     padding: 6px 15px;
     font-size: 13px;
     color: #b0c5d5;

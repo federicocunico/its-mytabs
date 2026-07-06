@@ -2,10 +2,9 @@
 import { defineComponent } from "vue";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { BDropdown, BDropdownItem } from "bootstrap-vue-next";
-import DurationPicker from "./DurationPicker.vue";
 
 export default defineComponent({
-    components: { FontAwesomeIcon, DurationPicker, BDropdown, BDropdownItem },
+    components: { FontAwesomeIcon, BDropdown, BDropdownItem },
     props: {
         state: {
             type: Object,
@@ -47,22 +46,6 @@ export default defineComponent({
                 </button>
             </div>
 
-            <DurationPicker :duration="state.duration" :dots="state.dots" :disabled="state.playing" @command="command" />
-
-            <div class="btn-group btn-group-sm" role="group">
-                <button class="btn btn-secondary" title="Rest (R)" :class="{ active: state.isRest }" :disabled="state.playing" @click='command("toggleRest")'>𝄽</button>
-                <button class="btn btn-secondary" title="Tie to previous note (L)" :class="{ active: state.tie }" :disabled="state.playing" @click='command("toggleTie")'>⌒</button>
-            </div>
-
-            <div class="btn-group btn-group-sm" role="group">
-                <button class="btn btn-secondary" title="Insert bar before (Ctrl+Ins)" :disabled="state.playing" @click='command("insertBar")'>+Bar</button>
-                <button class="btn btn-secondary" title="Delete bar (Ctrl+Del)" :disabled="state.playing" @click='command("deleteBar")'>−Bar</button>
-                <button class="btn btn-secondary" title="Insert beat (Ins)" :disabled="state.playing" @click='command("insertBeat")'>+Beat</button>
-                <button class="btn btn-secondary" title="Bar settings: time signature, tempo, key, repeats, section" :disabled="state.playing" @click='command("barSettings")'>Bar…</button>
-            </div>
-
-            <button class="btn btn-sm btn-secondary" :title="`Tracks (editing: ${trackName})`" :disabled="state.playing" @click='command("trackManager")'>Tracks…</button>
-
             <div class="btn-group btn-group-sm" role="group" v-if="state.voiceCount > 1">
                 <button
                     v-for="v in state.voiceCount"
@@ -91,13 +74,12 @@ export default defineComponent({
                 <template #button-content>
                     <font-awesome-icon :icon='["fas", "ellipsis-vertical"]' />
                 </template>
+                <BDropdownItem @click='command("trackManager")'>Tracks…</BDropdownItem>
                 <BDropdownItem @click='command("download")'>Download .gp (Ctrl+Shift+S)</BDropdownItem>
                 <BDropdownItem @click='command("help")'>Keyboard shortcuts (?)</BDropdownItem>
                 <BDropdownItem @click='command("exit")'>Exit to player</BDropdownItem>
             </BDropdown>
         </div>
-
-        <slot />
     </div>
 </template>
 

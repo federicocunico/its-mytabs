@@ -2,7 +2,7 @@
 import { defineComponent } from "vue";
 import { notify } from "@kyvg/vue3-notification";
 import { BModal } from "bootstrap-vue-next";
-import { baseURL, checkFetch, getSetting } from "../app.js";
+import { baseURL, checkFetch, generalError, getSetting } from "../app.js";
 import { getFileURL, getTempToken } from "../alphatab-shared.ts";
 import { EditorController } from "../editor/EditorController.ts";
 import { KeyboardController } from "../editor/keyboard-controller.ts";
@@ -10,7 +10,8 @@ import { KEYMAP } from "../editor/keymap.ts";
 import { downloadGp, saveScoreToServer } from "../editor/persistence.ts";
 import EditorToolbar from "../components/editor/EditorToolbar.vue";
 import EditorStatusBar from "../components/editor/EditorStatusBar.vue";
-import EffectsPalette from "../components/editor/EffectsPalette.vue";
+import EditorSidebar from "../components/editor/EditorSidebar.vue";
+import EditorTrackPanel from "../components/editor/EditorTrackPanel.vue";
 import BendDialog from "../components/editor/BendDialog.vue";
 import BarSettingsDialog from "../components/editor/BarSettingsDialog.vue";
 import TrackManagerDialog from "../components/editor/TrackManagerDialog.vue";
@@ -30,7 +31,7 @@ const DURATION_LABELS = {
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
 export default defineComponent({
-    components: { EditorToolbar, EditorStatusBar, EffectsPalette, BendDialog, BarSettingsDialog, TrackManagerDialog, BModal },
+    components: { EditorToolbar, EditorStatusBar, EditorSidebar, EditorTrackPanel, BendDialog, BarSettingsDialog, TrackManagerDialog, BModal },
 
     /** @type {alphaTab.AlphaTabApi} */
     api: null,
@@ -58,8 +59,16 @@ export default defineComponent({
             showBend: false,
             showBarSettings: false,
             showTracks: false,
+            showLeaveModal: false,
+            leavingTo: null,
             barSettingsInitial: {},
             trackList: [],
+            // Bottom panel state; recomputed in refreshUi() (score isn't reactive)
+            trackPanel: {
+                tracks: [],
+                currentIndex: 0,
+                invalidBars: [],
+            },
             fx: {
                 hammer: false,
                 palmMute: false,
@@ -148,7 +157,7 @@ export default defineComponent({
         }
 
         this.kb = new KeyboardController((command, arg) => this.dispatch(command, arg));
-        this.kb.isBlocked = () => this.showHelp || this.showBend || this.showBarSettings || this.showTracks;
+        this.kb.isBlocked = () => this.showHelp || this.showBend || this.showBarSettings || this.showTracks || this.showLeaveModal;
         this._onKeydown = (e) => {
             this.kb.handleKeydown(e);
             // Reflect the fret buffer in the status bar
@@ -174,11 +183,11 @@ export default defineComponent({
     },
 
     beforeRouteLeave(to, from, next) {
-        if (this.ctrl?.dirty) {
-            if (!window.confirm("You have unsaved changes. Leave without saving?")) {
-                next(false);
-                return;
-            }
+        if (this.ctrl?.dirty && !this._forceLeave) {
+            this.leavingTo = to.fullPath;
+            this.showLeaveModal = true;
+            next(false);
+            return;
         }
         next();
     },
@@ -222,6 +231,12 @@ export default defineComponent({
             });
 
             window.editorApi = this.api;
+
+            // Surface player/render errors (failed worklet/soundfont load) as toasts.
+            this.api.error.on((error) => {
+                console.error("[alphaTab]", error);
+                generalError(error instanceof Error ? error : new Error(String(error)));
+            });
 
             const host = {
                 requestRender: () => this.scheduleRender(),
@@ -309,6 +324,9 @@ export default defineComponent({
                     break;
                 case "nextBar":
                     this.ctrl.moveBar(1);
+                    break;
+                case "goToBar":
+                    this.ctrl.moveToBar(arg);
                     break;
                 case "barStart":
                     this.ctrl.cursor.toBarEdge("start");
@@ -414,25 +432,17 @@ export default defineComponent({
                     result = this.ctrl.cycleTremoloAtCursor();
                     break;
                 case "toggleSlideShift":
-                    result = this.toggleSlide(1); // SlideOutType.Shift
+                    result = this.ctrl.toggleSlideOutAtCursor(1); // SlideOutType.Shift
                     break;
                 case "toggleSlideLegato":
-                    result = this.toggleSlide(2); // SlideOutType.Legato
+                    result = this.ctrl.toggleSlideOutAtCursor(2); // SlideOutType.Legato
                     break;
-                case "toggleTap": {
-                    const r = this.ctrl.cursor.resolve();
-                    result = r ? this.ctrl.applyBeatEffectAtCursor({ kind: "tap", on: !r.beat.tap }) : null;
+                case "toggleTap":
+                    result = this.ctrl.toggleTapAtCursor();
                     break;
-                }
-                case "cycleGrace": {
-                    const r = this.ctrl.cursor.resolve();
-                    if (r) {
-                        // None(0) -> BeforeBeat(2) -> OnBeat(1) -> None
-                        const next = r.beat.graceType === 0 ? 2 : (r.beat.graceType === 2 ? 1 : 0);
-                        result = this.ctrl.applyBeatEffectAtCursor({ kind: "grace", type: next });
-                    }
+                case "cycleGrace":
+                    result = this.ctrl.cycleGraceAtCursor();
                     break;
-                }
                 case "bendDialog": {
                     const r = this.ctrl.cursor.resolve();
                     if (!r?.note) {
@@ -474,15 +484,6 @@ export default defineComponent({
             if (result && !result.ok && result.message) {
                 notify({ type: "warn", text: result.message });
             }
-        },
-
-        toggleSlide(type) {
-            const r = this.ctrl.cursor.resolve();
-            if (!r?.note) {
-                return { ok: false, message: "No note at cursor" };
-            }
-            const next = r.note.slideOutType === type ? 0 : type;
-            return this.ctrl.applyNoteEffectAtCursor({ kind: "slideOut", type: next });
         },
 
         trillPrompt() {
@@ -610,8 +611,7 @@ export default defineComponent({
         },
 
         deleteBarWithConfirm() {
-            const r = this.ctrl.cursor.resolve();
-            if (r && !r.bar.isRestOnly) {
+            if (!this.ctrl.cursorBarIsRestOnly()) {
                 if (!window.confirm("Delete this bar and its notes?")) {
                     return null;
                 }
@@ -697,7 +697,20 @@ export default defineComponent({
                 this.status.fillCapacity = fill.capacity;
             }
 
+            this.refreshTrackPanel();
             this.updateOverlay();
+        },
+
+        /** Recompute the bottom panel's plain data (the live score is not reactive). */
+        refreshTrackPanel() {
+            this.trackPanel.tracks = this.ctrl.score.tracks.map((t, i) => ({
+                index: i,
+                // Files often carry empty track names — fall back to something identifying
+                name: t.name || t.shortName || `Track ${i + 1}`,
+                strings: t.staves[0]?.tuning.length ?? 0,
+            }));
+            this.trackPanel.currentIndex = this.ctrl.cursor.trackIndex;
+            this.trackPanel.invalidBars = this.ctrl.invalidBars.map((b) => b.barIndex);
         },
 
         /** Paint invalid bars' numbers red via alphaTab's style API (must run BEFORE a render). */
@@ -835,20 +848,68 @@ export default defineComponent({
 
         // ---- playback ----
 
+        /**
+         * alphaTab 1.8.0's AlphaSynthWebWorkerApi has a self-recursive
+         * `loadedMidiInfo` getter; `api.midiLoaded.on()` replays the "current"
+         * value through it on subscribe and overflows the stack. Probe once and
+         * repair the prototype getter when the bug is present.
+         */
+        workAroundLoadedMidiInfoBug() {
+            if (this._midiInfoBugChecked) {
+                return;
+            }
+            const player = this.api.player;
+            const instance = player?.instance;
+            if (!instance) {
+                return; // player not initialized yet — probe again on the next play
+            }
+            this._midiInfoBugChecked = true;
+            try {
+                void player.loadedMidiInfo;
+            } catch {
+                Object.defineProperty(Object.getPrototypeOf(instance), "loadedMidiInfo", {
+                    configurable: true,
+                    get() {
+                        return this._loadedMidiInfo;
+                    },
+                });
+            }
+        },
+
         playPause() {
             if (this.playing) {
                 this.api.pause();
                 return;
             }
+            const startPlayback = () => {
+                const r = this.ctrl.cursor.resolve();
+                if (r) {
+                    this.api.tickPosition = r.beat.absolutePlaybackStart;
+                }
+                this.api.play();
+            };
             if (this.midiDirty) {
+                // loadMidiForScore() rebuilds the MIDI asynchronously in the
+                // worker; setting tickPosition before it finishes gets clobbered
+                // and playback resumes from the stale previous position.
+                this.workAroundLoadedMidiInfoBug();
+                // midiLoaded replays the PREVIOUS load synchronously on
+                // subscribe — arm the handler only for the upcoming one.
+                let armed = false;
+                const unsubscribe = this.api.midiLoaded.on(() => {
+                    if (!armed) {
+                        return;
+                    }
+                    armed = false;
+                    unsubscribe();
+                    startPlayback();
+                });
+                armed = true;
                 this.api.loadMidiForScore();
                 this.midiDirty = false;
+                return;
             }
-            const r = this.ctrl.cursor.resolve();
-            if (r) {
-                this.api.tickPosition = r.beat.absolutePlaybackStart;
-            }
-            this.api.play();
+            startPlayback();
         },
 
         playFromBarStart() {
@@ -908,6 +969,25 @@ export default defineComponent({
             const name = [this.tab.artist, this.tab.title].filter(Boolean).join(" - ") || "tab";
             downloadGp(bytes, name);
         },
+
+        // ---- leave guard (three-way modal) ----
+
+        async leaveWithSave() {
+            await this.save();
+            if (this.ctrl.dirty) {
+                // Save failed (already notified) — stay on the page.
+                return;
+            }
+            this.showLeaveModal = false;
+            this._forceLeave = true;
+            this.$router.push(this.leavingTo);
+        },
+
+        leaveWithDiscard() {
+            this.showLeaveModal = false;
+            this._forceLeave = true;
+            this.$router.push(this.leavingTo);
+        },
     },
 });
 </script>
@@ -919,15 +999,41 @@ export default defineComponent({
             :title="tab.title || 'Untitled'"
             :trackName="trackName"
             @command="dispatch"
-        >
-            <EffectsPalette :fx="fx" :disabled="playing || !ready" @command="dispatch" />
-        </EditorToolbar>
+        />
 
-        <div class="score-area">
-            <div ref="atContainer" v-pre></div>
+        <div class="editor-main">
+            <EditorSidebar v-if="ready" :ui="ui" :fx="fx" :disabled="playing || !ready" @command="dispatch" />
+            <div class="score-area">
+                <div ref="atContainer" v-pre></div>
+            </div>
         </div>
 
-        <EditorStatusBar :info="status" v-if="ready" />
+        <div class="editor-bottom" v-if="ready">
+            <EditorTrackPanel
+                :tracks="trackPanel.tracks"
+                :currentIndex="trackPanel.currentIndex"
+                :barIndex="status.barIndex"
+                :barCount="status.barCount"
+                :invalidBars="trackPanel.invalidBars"
+                :disabled="playing"
+                @switchTrack="switchTrack"
+                @openTrackManager="openTrackManager"
+                @goToBar="dispatch('goToBar', $event)"
+            />
+            <EditorStatusBar :info="status" />
+        </div>
+
+        <BModal v-model="showLeaveModal" title="Unsaved changes">
+            <p>You have unsaved changes. What do you want to do?</p>
+            <template #footer>
+                <button class="btn btn-success" :disabled="saving" @click="leaveWithSave">
+                    <span v-if="saving" class="spinner-border spinner-border-sm me-1" role="status"></span>
+                    Save &amp; leave
+                </button>
+                <button class="btn btn-danger" :disabled="saving" @click="leaveWithDiscard">Discard changes</button>
+                <button class="btn btn-secondary" :disabled="saving" @click="showLeaveModal = false">Cancel</button>
+            </template>
+        </BModal>
 
         <BendDialog v-model="showBend" @apply="applyBendPreset" />
         <BarSettingsDialog v-model="showBarSettings" :initial="barSettingsInitial" @apply="applyBarSettings" />
@@ -954,7 +1060,8 @@ export default defineComponent({
                         </tbody>
                     </table>
                 </div>
-                <p class="text-muted">Type digits (0–9) or numpad digits (NumLock on) to enter frets — two digits within a moment combine (1, 2 → 12). Use ↑/↓ to move between strings on the same beat.</p>
+                <p
+                    class="text-muted">Type digits (0–9) or numpad digits (NumLock on) to enter frets — two digits within a moment combine (1, 2 → 12). Use ↑/↓ to move between strings on the same beat.</p>
             </div>
         </BModal>
     </div>
@@ -963,10 +1070,29 @@ export default defineComponent({
 <style lang="scss">
 // Not scoped: the overlay elements are created programmatically inside the alphaTab container.
 .tab-editor {
+    .editor-main {
+        display: flex;
+        align-items: flex-start;
+    }
+
     .score-area {
-        width: 95%;
-        margin: 0 auto 60px auto;
+        flex: 1;
+        min-width: 0;
+        // keep the last bars reachable above the fixed bottom panel
+        margin: 0 15px 110px 15px;
         position: relative;
+    }
+
+    .editor-bottom {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 20;
+        display: flex;
+        flex-direction: column;
+        background-color: #101418;
+        border-top: 1px solid #222;
     }
 
     .editor-beat-cursor {
