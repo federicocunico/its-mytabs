@@ -83,6 +83,45 @@ function padVoiceWithRests(voice: Voice, missing: number): void {
     }
 }
 
+/**
+ * True when the bar contains no notes at all (only rests / placeholder voices).
+ * Computed from the current beats — alphaTab's `Bar.isRestOnly` is a
+ * finish()-cached field and can be stale mid-transaction.
+ */
+export function isBarRestOnly(bar: Bar): boolean {
+    for (const voice of bar.voices) {
+        if (isPlaceholderVoice(voice)) {
+            continue;
+        }
+        for (const beat of voice.beats) {
+            if (!beat.isRest) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+/**
+ * True when the beat at `index` is a rest in the voice's trailing run of rests
+ * AND deleting it would leave the voice under-full — normalization would
+ * immediately re-pad it, so the deletion is a guaranteed no-op. Trailing rests
+ * of an over-full voice are NOT redundant: deleting them reduces the overflow.
+ */
+export function isRedundantTrailingRest(voice: Voice, index: number): boolean {
+    const beat = voice.beats[index];
+    if (!beat || !beat.isRest) {
+        return false;
+    }
+    for (let i = index + 1; i < voice.beats.length; i++) {
+        if (!voice.beats[i].isRest) {
+            return false;
+        }
+    }
+    const capacity = voice.bar.masterBar.calculateDuration();
+    return usedTicks(voice) - beatTicks(beat) < capacity;
+}
+
 export type BarFillState = "ok" | "under" | "over";
 
 /**

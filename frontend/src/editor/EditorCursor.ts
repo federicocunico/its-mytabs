@@ -123,6 +123,16 @@ export class EditorCursor {
         return true;
     }
 
+    /** Jump to beat 0 of an absolute bar index. Returns false (no move) when out of range. */
+    toBar(index: number): boolean {
+        if (!this.voiceAt(index)) {
+            return false;
+        }
+        this.pos.barIndex = index;
+        this.pos.beatIndex = 0;
+        return true;
+    }
+
     /** Jump to the first/last beat of the current bar. */
     toBarEdge(edge: "start" | "end"): void {
         const voice = this.voiceAt(this.pos.barIndex);

@@ -72,6 +72,22 @@ describe("EditorCursor", () => {
         expect(cursor.pos.barIndex).toBe(0);
     });
 
+    it("toBar jumps to beat 0 of a valid bar and rejects out-of-range indices", () => {
+        const { cursor } = makeCursor();
+        cursor.moveBeat(1); // beat 1 of bar 0
+
+        expect(cursor.toBar(1)).toBe(true);
+        expect(cursor.pos.barIndex).toBe(1);
+        expect(cursor.pos.beatIndex).toBe(0);
+        expect(cursor.resolve()).not.toBeNull();
+
+        expect(cursor.toBar(2)).toBe(false);
+        expect(cursor.toBar(-1)).toBe(false);
+        // failed jump leaves the cursor where it was
+        expect(cursor.pos.barIndex).toBe(1);
+        expect(cursor.pos.beatIndex).toBe(0);
+    });
+
     it("clamp() snaps out-of-range indices after structural changes", () => {
         const { cursor, score } = makeCursor();
         cursor.pos.barIndex = 99;

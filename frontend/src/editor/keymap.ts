@@ -42,8 +42,8 @@ export const KEYMAP: KeyBinding[] = [
     { code: "End", ctrl: true, command: "scoreEnd", keyLabel: "Ctrl+End", description: "End of the score", group: "Navigation" },
 
     // ---- Notes & rhythm ----
-    { code: "Delete", command: "deleteNote", keyLabel: "Del", description: "Delete the note at the cursor", group: "Notes" },
-    { code: "Backspace", command: "deleteNote", keyLabel: "Backspace", description: "Delete the note at the cursor", group: "Notes" },
+    { code: "Delete", command: "deleteNote", keyLabel: "Del", description: "Delete the note at the cursor (on a rest: delete the beat)", group: "Notes" },
+    { code: "Backspace", command: "deleteNote", keyLabel: "Backspace", description: "Delete the note at the cursor (on a rest: delete the beat)", group: "Notes" },
     { code: "Delete", shift: true, command: "deleteBeat", keyLabel: "Shift+Del", description: "Delete the whole beat", group: "Notes" },
     { code: "Insert", command: "insertBeat", keyLabel: "Ins", description: "Insert a beat before the cursor", group: "Notes" },
     { code: "KeyR", command: "toggleRest", keyLabel: "R", description: "Turn the beat into a rest", group: "Notes" },
@@ -90,6 +90,15 @@ export const KEYMAP: KeyBinding[] = [
     { code: "Escape", command: "escape", keyLabel: "Esc", description: "Cancel input / stop playback", group: "Edit" },
     { code: "Slash", shift: true, command: "help", keyLabel: "?", description: "Show keyboard shortcuts", group: "Edit" },
 ];
+
+/**
+ * Primary shortcut label for a command (first binding wins — later bindings
+ * for the same command are aliases). Empty string when the command has no
+ * keyboard binding. Used for sidebar/tooltip shortcut hints.
+ */
+export function keyLabelFor(command: string): string {
+    return KEYMAP.find((b) => b.command === command)?.keyLabel ?? "";
+}
 
 export function matchBinding(e: Pick<KeyboardEvent, "code" | "key" | "ctrlKey" | "shiftKey" | "altKey">): KeyBinding | null {
     for (const binding of KEYMAP) {

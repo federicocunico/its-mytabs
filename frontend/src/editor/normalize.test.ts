@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as alphaTab from "@coderline/alphatab";
 import { loadTex, scoreJson, TEX_TWO_BARS, voice0, walkBeatChain } from "./test-utils.ts";
-import { beatTicks, checkBarFill, normalizeScore } from "./normalize.ts";
+import { beatTicks, checkBarFill, isBarRestOnly, isRedundantTrailingRest, normalizeScore } from "./normalize.ts";
 
 const { Duration } = alphaTab.model;
 
@@ -188,5 +188,58 @@ describe("normalizeScore", () => {
 
         expect(emptyVoice.beats.length).toBe(1);
         expect(emptyVoice.isEmpty).toBe(true);
+    });
+});
+
+describe("isBarRestOnly", () => {
+    it("is false for a bar containing notes", () => {
+        const { score } = loadTex(TEX_TWO_BARS);
+        expect(isBarRestOnly(score.tracks[0].staves[0].bars[0])).toBe(false);
+    });
+
+    it("is true for a lone full-bar rest and for a bar of several rests", () => {
+        const { score } = loadTex(`\\ts 4 4 r.1 | r.4 r.4 r.4 r.4 | 3.3.4 5.3.4 7.3.4 5.3.4`);
+        expect(isBarRestOnly(score.tracks[0].staves[0].bars[0])).toBe(true);
+        expect(isBarRestOnly(score.tracks[0].staves[0].bars[1])).toBe(true);
+        expect(isBarRestOnly(score.tracks[0].staves[0].bars[2])).toBe(false);
+    });
+
+    it("computes from current beats, not finish()-cached state", () => {
+        const { score } = loadTex(`\\ts 4 4 3.3.4 r.4 r.4 r.4 | 3.3.4 5.3.4 7.3.4 5.3.4`);
+        const bar = score.tracks[0].staves[0].bars[0];
+        expect(isBarRestOnly(bar)).toBe(false);
+        // Mutate without running finish(): remove the only note beat
+        bar.voices[0].beats.splice(0, 1);
+        expect(isBarRestOnly(bar)).toBe(true);
+    });
+});
+
+describe("isRedundantTrailingRest", () => {
+    it("is true for rests in the trailing pad run of a full bar", () => {
+        const { score } = loadTex(`\\ts 4 4 3.3.4 5.3.4 r.4 r.4 | 3.3.4 5.3.4 7.3.4 5.3.4`);
+        const voice = voice0(score, 0);
+        expect(isRedundantTrailingRest(voice, 2)).toBe(true);
+        expect(isRedundantTrailingRest(voice, 3)).toBe(true);
+    });
+
+    it("is false for a rest followed by notes (deletion shifts content left)", () => {
+        const { score } = loadTex(`\\ts 4 4 3.3.4 r.4 5.3.4 7.3.4 | 3.3.4 5.3.4 7.3.4 5.3.4`);
+        const voice = voice0(score, 0);
+        expect(isRedundantTrailingRest(voice, 1)).toBe(false);
+    });
+
+    it("is false for note beats", () => {
+        const { score } = loadTex(TEX_TWO_BARS);
+        expect(isRedundantTrailingRest(voice0(score, 0), 0)).toBe(false);
+    });
+
+    it("is false for a trailing rest of an over-full bar (deleting it is a real fix)", () => {
+        const { score } = loadTex(`\\ts 4 4 3.3.4 5.3.4 7.4.4 5.2.4 | 3.3.4 5.3.4 7.3.4 5.3.4`);
+        const voice = voice0(score, 0);
+        // Append a redundant quarter rest -> bar is 5/4 in 4/4 (over-full)
+        const rest = new alphaTab.model.Beat();
+        rest.duration = Duration.Quarter;
+        voice.addBeat(rest);
+        expect(isRedundantTrailingRest(voice, 4)).toBe(false);
     });
 });

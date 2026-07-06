@@ -9,7 +9,7 @@
 import * as alphaTab from "@coderline/alphatab";
 import { EditorCursor } from "./EditorCursor.ts";
 import { SnapshotHistory } from "./history.ts";
-import { type BarFillState, beatTicks, checkBarFill, normalizeScore, rebuildScore } from "./normalize.ts";
+import { type BarFillState, beatTicks, checkBarFill, isBarRestOnly, isRedundantTrailingRest, normalizeScore, rebuildScore } from "./normalize.ts";
 import { EditorValidationError } from "./validation.ts";
 import { removeNoteOnString, setNoteFret, toggleTie } from "./mutations/note.ts";
 import { applyBeatData, type BeatData, deleteBeat, insertBeatAt, makeRest, serializeBeat, setBeatDots, setBeatDuration } from "./mutations/beat.ts";
@@ -124,6 +124,9 @@ export class EditorController {
         if (opts.structural) {
             this.replaceScore(rebuildScore(this.score, this.settings));
         } else {
+            // The mutation may have removed the beat under the cursor; clamp
+            // before any host callback can observe an unresolvable cursor.
+            this.cursor.clamp();
             this.refreshValidation();
             this.host.requestRender();
         }
@@ -187,11 +190,22 @@ export class EditorController {
         });
     }
 
+    /** Del: remove the note on the cursor string; on a rest, delete the beat itself. */
     deleteNoteAtCursor(): CommandResult {
+        const r = this.cursor.resolve();
+        if (!r) {
+            return { ok: false, message: "No beat at cursor" };
+        }
+        if (r.beat.isRest) {
+            return this.deleteBeatAtCursor();
+        }
+        if (!r.beat.getNoteOnString(this.cursor.pos.string)) {
+            return { ok: false, message: "No note on this string" };
+        }
         return this.transact((touched) => {
-            const r = this.requireCursor();
-            removeNoteOnString(r.beat, this.cursor.pos.string);
-            touched.add(r.bar);
+            const t = this.requireCursor();
+            removeNoteOnString(t.beat, this.cursor.pos.string);
+            touched.add(t.bar);
         });
     }
 
@@ -237,10 +251,17 @@ export class EditorController {
     }
 
     toggleRestAtCursor(): CommandResult {
+        const r = this.cursor.resolve();
+        if (!r) {
+            return { ok: false, message: "No beat at cursor" };
+        }
+        if (r.beat.isRest) {
+            return { ok: false, message: "Beat is already a rest" };
+        }
         return this.transact((touched) => {
-            const r = this.requireCursor();
-            makeRest(r.beat);
-            touched.add(r.bar);
+            const t = this.requireCursor();
+            makeRest(t.beat);
+            touched.add(t.bar);
         });
     }
 
@@ -253,13 +274,25 @@ export class EditorController {
     }
 
     deleteBeatAtCursor(): CommandResult {
-        const result = this.transact((touched) => {
-            const r = this.requireCursor();
-            deleteBeat(r.voice, this.cursor.pos.beatIndex);
-            touched.add(r.bar);
+        const r = this.cursor.resolve();
+        if (!r) {
+            return { ok: false, message: "No beat at cursor" };
+        }
+        // Honest rejections (before the checkpoint — no undo pollution) for
+        // deletions that normalization would silently undo.
+        if (r.beat.isRest) {
+            if (r.voice.beats.length === 1) {
+                return { ok: false, message: "Bar is already empty" };
+            }
+            if (isRedundantTrailingRest(r.voice, this.cursor.pos.beatIndex)) {
+                return { ok: false, message: "Trailing rests keep the bar in time — delete the bar (Ctrl+Del) or edit earlier beats" };
+            }
+        }
+        return this.transact((touched) => {
+            const t = this.requireCursor();
+            deleteBeat(t.voice, this.cursor.pos.beatIndex);
+            touched.add(t.bar);
         });
-        this.cursor.clamp();
-        return result;
     }
 
     // ---- bar commands -----------------------------------------------------
@@ -277,11 +310,10 @@ export class EditorController {
     }
 
     deleteBarAtCursor(): CommandResult {
-        const result = this.transact(() => {
+        // replaceScore() clamps the cursor on the rebuilt graph.
+        return this.transact(() => {
             deleteBar(this.score, this.cursor.pos.barIndex);
         }, { structural: true, skipNormalize: true });
-        this.cursor.clamp();
-        return result;
     }
 
     // ---- score structure (Phase 3) -------------------------------------------
@@ -452,6 +484,34 @@ export class EditorController {
         }
     }
 
+    toggleTapAtCursor(): CommandResult {
+        const r = this.cursor.resolve();
+        if (!r) {
+            return { ok: false, message: "No beat at cursor" };
+        }
+        return this.applyBeatEffectAtCursor({ kind: "tap", on: !r.beat.tap });
+    }
+
+    /** Cycle grace type: None(0) -> BeforeBeat(2) -> OnBeat(1) -> None. */
+    cycleGraceAtCursor(): CommandResult {
+        const r = this.cursor.resolve();
+        if (!r) {
+            return { ok: false, message: "No beat at cursor" };
+        }
+        const next = r.beat.graceType === 0 ? 2 : (r.beat.graceType === 2 ? 1 : 0);
+        return this.applyBeatEffectAtCursor({ kind: "grace", type: next });
+    }
+
+    /** Toggle a slide-out on the cursor note: same type toggles off, other type swaps. */
+    toggleSlideOutAtCursor(type: 1 | 2): CommandResult {
+        const r = this.cursor.resolve();
+        if (!r?.note) {
+            return { ok: false, message: "No note at cursor" };
+        }
+        const next = r.note.slideOutType === type ? 0 : type;
+        return this.applyNoteEffectAtCursor({ kind: "slideOut", type: next });
+    }
+
     /** Cycle tremolo picking: off -> 8th -> 16th -> 32nd -> off. */
     cycleTremoloAtCursor(): CommandResult {
         const r = this.cursor.resolve();
@@ -543,7 +603,24 @@ export class EditorController {
         this.host.onStateChanged();
     }
 
+    /** Absolute bar jump (bar navigator). Out-of-range indices are a no-op. */
+    moveToBar(index: number): void {
+        if (this.cursor.toBar(index)) {
+            this.host.onStateChanged();
+        }
+    }
+
     // ---- state for the UI ---------------------------------------------------
+
+    /**
+     * True when the cursor's bar holds no notes (deleting it loses nothing).
+     * Explicit compute — alphaTab's `Bar.isRestOnly` is finish()-cached and can
+     * be stale after skipNormalize transactions.
+     */
+    cursorBarIsRestOnly(): boolean {
+        const r = this.cursor.resolve();
+        return r !== null && isBarRestOnly(r.bar);
+    }
 
     /** Ticks used vs capacity of the cursor's bar (status-bar fill indicator). */
     barFill(): { used: number; capacity: number } | null {
