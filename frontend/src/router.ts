@@ -11,6 +11,7 @@ import TabNew from "./pages/TabNew.vue";
 
 const Tab = () => import("./pages/Tab.vue");
 const TabEditor = () => import("./pages/TabEditor.vue");
+const LocalLibrary = () => import("./pages/LocalLibrary.vue");
 
 const routes: RouteRecordRaw[] = [
     {
@@ -75,6 +76,12 @@ const routes: RouteRecordRaw[] = [
                         name: "settings",
                         path: "/settings",
                         component: Settings,
+                    },
+                    {
+                        name: "localHome",
+                        path: "/library",
+                        component: LocalLibrary,
+                        meta: { hideFooter: true },
                     },
                 ],
             },

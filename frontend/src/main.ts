@@ -9,6 +9,7 @@ import { createBootstrap } from "bootstrap-vue-next";
 // Dependencies
 import { router } from "./router.ts";
 import { i18n } from "./i18n.ts";
+import { initStorage } from "./storage/session.ts";
 
 // CSS
 import "./styles/main.scss";
@@ -18,7 +19,10 @@ app.use(router);
 app.use(i18n);
 app.use(createBootstrap());
 app.component("FontAwesomeIcon", FontAwesomeIcon);
-app.mount("#app");
+
+// Restore any previously-picked storage folder before the UI renders, so the
+// local library / editor see a ready provider on first paint.
+initStorage().finally(() => app.mount("#app"));
 
 function checkMobile() {
     if (window.innerWidth <= 768) {
