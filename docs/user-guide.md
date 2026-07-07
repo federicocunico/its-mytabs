@@ -375,7 +375,7 @@ You can deep-link specific track and audio sources with query parameters:
 | `track`   | Track index to display (0-based)                                         |
 | `audio`   | Audio source ID — e.g. `synth`, `youtube-VIDEO_ID`, `audio-filename.mp3` |
 
-Example live demo: https://its-mytabs.kuma.pet/tab/1?audio=youtube-VuKSlOT__9s&track=2
+Example (on your own instance): `http://localhost:47777/tab/1?audio=youtube-VuKSlOT__9s&track=2`
 
 ---
 

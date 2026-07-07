@@ -1,0 +1,8 @@
+# Shell scripts and the Docker entrypoint must stay LF so they run inside Linux
+# containers regardless of the checkout platform (Windows would otherwise give
+# them CRLF and break the shebang: "exec /bin/sh\r: no such file or directory").
+*.sh text eol=lf
+extra/docker-entrypoint.sh text eol=lf
+Dockerfile text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf

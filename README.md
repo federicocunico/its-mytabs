@@ -4,110 +4,80 @@
 
 # It's MyTabs
 
-<a target="_blank" href="https://github.com/louislam/uptime-kuma"><img src="https://img.shields.io/github/stars/louislam/its-mytabs?style=flat" /></a>
-<a target="_blank" href="https://hub.docker.com/r/louislam/uptime-kuma"><img src="https://img.shields.io/docker/pulls/louislam/its-mytabs" /></a>
-<a target="_blank" href="https://hub.docker.com/r/louislam/uptime-kuma"><img src="https://img.shields.io/docker/v/louislam/its-mytabs/latest?label=docker%20image%20ver." /></a>
-<a target="_blank" href="https://github.com/louislam/uptime-kuma"><img src="https://img.shields.io/github/last-commit/louislam/its-mytabs" /></a>
+<a target="_blank" href="https://github.com/federicocunico/its-mytabs"><img src="https://img.shields.io/github/stars/federicocunico/its-mytabs?style=flat" /></a>
+<a target="_blank" href="https://github.com/federicocunico/its-mytabs"><img src="https://img.shields.io/github/last-commit/federicocunico/its-mytabs" /></a>
 
 Open source, web based, self hostable guitar/bass tab player and editor with a Guitar-Pro-style studio interface, similar to Songsterr.
 
-<img width="800" alt="MyTabs Studio — player" src="./docs/screenshots/studio-player.png" />
+> This is a fork of [louislam/its-mytabs](https://github.com/louislam/its-mytabs). It runs entirely from this repository's source — build the Docker image or run it with Deno as shown below (there is
+> no prebuilt image or release download to pull).
 
-## Live Demo
-
-https://its-mytabs.kuma.pet/tab/1?audio=youtube-VuKSlOT__9s&track=2
+<img width="800" alt="MyTabs Studio — editor" src="./docs/screenshots/studio-editor.png" />
 
 ## Features
 
 - Free and open source (MIT License)
 - Supports guitar tabs and bass tabs
-- **Studio interface** — a Guitar-Pro-style app shell shared by the player and the editor:
-  - Top bar with song info, key / tempo / time-signature badges and a **Player | Edit** switch
+- **Studio editor** — a Guitar-Pro-style app shell; opening a tab lands straight in the editor:
+  - Top bar with song info, key / tempo / time-signature badges and a **Tab / Score / Score + Tab** view switch, a **color-notes** toggle and a **keyboard-shortcuts** button
   - The notation always renders on a **white sheet** inside the dark chrome
-  - **Docked mixer** (right rail): per-track solo / mute / volume, master volume, track colors
+  - **Docked mixer** (right rail): per-track solo / mute / volume, master volume, track colors; the selected track is highlighted
   - **Multi-track bar navigator** (bottom): one row per track, colored blocks where each track plays, section lane, playhead — click any bar to jump there
   - Docked transport: play/pause, to start/end, loop, metronome, count-in, speed slider, time readout
   - Every panel is collapsible and resizable (layout persists across reloads)
-- **Score editor** — edit tabs right in the browser (notes, rests, durations, effects, bars, tracks, tunings) with full keyboard shortcuts, undo/redo, and save back to the server as .gp
+- **Score editing** — edit tabs right in the browser (notes, rests, durations, effects, bars, tracks, tunings) with full keyboard shortcuts, undo/redo, and save back to the server as .gp — including
+  percussion / drum tracks
 - Sync your tabs with audio files (.mp3, .ogg) or Youtube videos
 - MIDI Synth - able to mute tracks and solo tracks
 - Supports .gp, .gpx, .gp3, .gp4, .gp5, .musicxml, .capx formats
+- Instruments identified from their General MIDI program (drums detected by the drum channel)
 - Mobile friendly
-- Offer different cursor modes:
-  - No cursor (just auto scroll the tab) - You can use it to learn to coop with drums, not just following the cursor
-  - Highlight the current bar
-  - Follow cursor
-- Notes coloring (string → color coding on the sheet)
-- Sections navigation (jump to Intro / Verse / Chorus from the left rail)
-- Able to show the score view instead of tab view (View toggle in the left rail)
+- Notes coloring (string → color coding on the sheet), toggled from the top bar
+- Per-tab display preferences (view mode + color notes) persist across reloads
 - Able to share tabs with others with a link
 
-## Installation
+## Run
 
-Support: x64, ARM64
-
-Tip: Youtube videos may not work on a private ip address (e.g. 192.168.x.x), use `localhost` or a public ip/domain instead.
-
-### Windows (exe)
-
-Download the latest release (its-mytabs-v1.x.x-windows.zip) from [Releases](https://github.com/louislam/its-mytabs/releases/latest) page, unzip it, and run `its-mytabs.exe`.
-
-### Docker Compose
-
-Download the [compose.yaml]() file and put it in an empty folder.
-
-```yaml
-services:
-    app:
-        image: louislam/its-mytabs:1
-        ports:
-            # Host Port:Container Port
-            - "47777:47777"
-        volumes:
-            # Host Path:Container Path
-            - ./data:/app/data
-        restart: unless-stopped
-```
+This fork is run from source. Clone the repository first:
 
 ```bash
-docker compose up  # Run in foreground
+git clone https://github.com/federicocunico/its-mytabs.git
+cd its-mytabs
+```
+
+Support: x64, ARM64. Tip: Youtube videos may not work on a private ip address (e.g. 192.168.x.x), use `localhost` or a public ip/domain instead.
+
+### Docker Compose (recommended)
+
+The bundled [`compose.yaml`](./compose.yaml) builds the image from the current source — no prebuilt image is pulled.
+
+```bash
+docker compose up --build       # build + run in foreground
 # or
-docker compose up -d  # Run in background
+docker compose up --build -d    # build + run in background
+```
+
+Your tabs are stored in `./data` (mounted into the container). Go to `http://localhost:47777` to access the web UI.
+
+### Docker (without compose)
+
+```bash
+docker build -t its-mytabs:local .
+docker run -d --name its-mytabs -p 47777:47777 -v its-mytabs:/app/data --restart unless-stopped its-mytabs:local
 ```
 
 Go to `http://localhost:47777` to access the web UI.
 
-### Docker
+### Deno (no Docker) (Linux/Windows/MacOS)
+
+Requirements: [Deno](https://deno.land/) 2.4.4+ and Git.
 
 ```bash
-docker run -d --name its-mytabs -p 47777:47777 -v its-mytabs:/app/data --restart unless-stopped louislam/its-mytabs:1
+deno task setup   # install deps + build the frontend
+deno task start   # start the server
 ```
 
-Go to `http://localhost:47777` to access the web UI.
-
-### Deno (Non Docker) (Linux/Windows/MacOS)
-
-Requirements:
-
-- [Deno](https://deno.land/) 2.4.4 or above
-- Git
-
-```bash
-# Install Deno from https://deno.land/, then:
-make dev    # install deps, build frontend, start backend + Vite concurrently
-make build  # install deps + production frontend build
-```
-
-**Dev URLs:** backend `http://localhost:47777` · Vite HMR `http://localhost:5173`. Stop Docker or anything else on port 47777 before `make dev`.
-
-Or for production:
-
-```bash
-deno task setup
-deno task start
-```
-
-Go to `http://localhost:47777` to access the web UI.
+Go to `http://localhost:47777` to access the web UI. For a hot-reloading dev environment, see [Development](#development).
 
 ## Screenshots
 
