@@ -61,7 +61,7 @@ export default defineComponent({
                     <circle cx="18" cy="16" r="3" fill="#fff" />
                 </svg>
             </span>
-            <span class="tb-name">MyTabs<span class="tb-name-2">&#8202;Studio</span></span>
+            <span class="tb-name">TabCraft<span class="tb-name-2">&#8202;Studio</span></span>
         </div>
 
         <div class="tb-sep"></div>

@@ -1,5 +1,7 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
+import tailwindcss from "@tailwindcss/vite";
 import { alphaTab } from "@coderline/alphatab-vite";
 import viteCompression from "vite-plugin-compression";
 import { visualizer } from "rollup-plugin-visualizer";
@@ -20,12 +22,18 @@ export default defineConfig({
     define: {
         appVersion: JSON.stringify(appVersion),
     },
+    resolve: {
+        alias: {
+            "@": fileURLToPath(new URL("./src", import.meta.url)),
+        },
+    },
     build: {
         outDir: "../dist",
         emptyOutDir: true,
     },
     plugins: [
         vue(),
+        tailwindcss(),
         alphaTab(),
         viteCompression({
             algorithm: "gzip",

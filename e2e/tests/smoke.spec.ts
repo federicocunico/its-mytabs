@@ -2,14 +2,13 @@ import { expect, type Page, test } from "@playwright/test";
 import * as path from "node:path";
 
 /**
- * End-to-end playback smoke: register -> upload -> viewer plays -> editor
- * plays -> edit -> save -> viewer still plays. Any console/page error matching
- * the fatal patterns (dead audio worklet, alphaTab internal errors) fails the
- * run even if the UI looks alive.
+ * End-to-end smoke for the TabCraft Studio library + editor on client-side
+ * storage: onboarding -> browser storage (OPFS) -> upload -> organize
+ * (folder/rename/favorite/move) -> editor plays -> edit -> save -> state
+ * persists across reload. Any console/page error matching the fatal patterns
+ * (dead audio worklet, alphaTab internal errors) fails the run even if the UI
+ * looks alive.
  */
-
-const EMAIL = "e2e@example.com";
-const PASSWORD = "e2e-password-123";
 
 const FATAL_PATTERNS = [
     /Audio Worklet creation failed/i,
@@ -72,36 +71,41 @@ async function expectPlaybackAdvances(
     expect(advanced, `${apiGlobal} playback tick should advance`).toBe(true);
 }
 
-test("full playback smoke: upload -> view -> edit -> save -> view", async ({ page }) => {
+test("library smoke: onboard -> upload -> edit -> save -> organize -> persist", async ({ page }) => {
     watchPage(page);
 
-    await test.step("register the admin account", async () => {
+    await test.step("onboarding offers browser storage and the library loads", async () => {
         await page.goto("/");
-        await page.waitForURL(/register/);
-        await page.getByRole("textbox", { name: "Email" }).fill(EMAIL);
-        await page.getByRole("textbox", { name: "Password", exact: true }).fill(
-            PASSWORD,
-        );
-        await page.getByRole("textbox", { name: "Repeat Password" }).fill(
-            PASSWORD,
-        );
-        await page.getByRole("button", { name: "Create" }).click();
+        await page.getByTestId("use-browser-storage").click();
+        await expect(page.getByRole("button", { name: "New" })).toBeVisible();
+    });
+
+    await test.step("legacy URLs redirect home", async () => {
+        await page.goto("/login");
+        await page.waitForURL(/\/$/);
+        await page.goto("/tab/1");
         await page.waitForURL(/\/$/);
     });
 
-    let tabPath = "";
-    await test.step("upload the smoke fixture (opens the editor by default)", async () => {
-        await page.goto("/new-tab");
-        await page.locator('input[type="file"]').setInputFiles(
-            path.join(__dirname, "..", "fixtures", "smoke.gp"),
-        );
-        await page.getByRole("button", { name: "Upload" }).click();
-        // Opening a tab now redirects to the editor.
-        await page.waitForURL(/\/tab\/\d+\/editor$/);
-        tabPath = new URL(page.url()).pathname.replace(/\/editor$/, "");
+    await test.step("theme toggle persists across reload", async () => {
+        await page.getByRole("button", { name: "Light theme" }).click();
+        await expect(page.locator("html")).not.toHaveClass(/dark/);
+        await page.reload();
+        await expect(page.locator("html")).not.toHaveClass(/dark/);
+        await page.getByRole("button", { name: "Dark theme" }).click();
+        await expect(page.locator("html")).toHaveClass(/dark/);
     });
 
-    await test.step("editor renders and plays from a clean load", async () => {
+    await test.step("upload the smoke fixture", async () => {
+        await page.getByTestId("upload-input").setInputFiles(
+            path.join(__dirname, "..", "fixtures", "smoke.gp"),
+        );
+        await expect(page.getByText(/smoke/i).first()).toBeVisible();
+    });
+
+    await test.step("editor opens, renders and plays from a clean load", async () => {
+        await page.getByText(/smoke/i).first().click();
+        await page.waitForURL(/\/edit\?path=/);
         await page.waitForFunction(() =>
             !!(window as never as { editorApi?: { score?: unknown } }).editorApi
                 ?.score
@@ -112,42 +116,62 @@ test("full playback smoke: upload -> view -> edit -> save -> view", async ({ pag
         await expectPlaybackAdvances(page, "editorApi");
     });
 
-    await test.step("legacy player still renders and plays", async () => {
-        await page.goto(`${tabPath}/player`);
-        await expect(page.locator("canvas").first()).toBeVisible({
-            timeout: 30_000,
-        });
-        await expectPlaybackAdvances(page, "api");
-        await page.goto(`${tabPath}/editor`);
-        await page.waitForFunction(() =>
-            !!(window as never as { editorApi?: { score?: unknown } }).editorApi
-                ?.score
-        );
-    });
-
-    await test.step("edit a note, play again (rebuilt MIDI), save", async () => {
+    await test.step("edit a note, play again (rebuilt MIDI), save to storage", async () => {
         await page.keyboard.press("5");
-        // dirty indicator appears once the fret buffer commits
         await expect(page.locator(".tb-dirty")).toBeVisible({
             timeout: 10_000,
         });
         await expectPlaybackAdvances(page, "editorApi");
-
-        const saveResponse = page.waitForResponse(
-            (res) =>
-                res.request().method() === "POST" &&
-                /\/api\/tab\/\d+\//.test(res.url()),
-            { timeout: 30_000 },
-        );
         await page.keyboard.press("Control+s");
-        expect((await saveResponse).status(), "save request should succeed")
-            .toBe(200);
-        await expect(page.locator(".tb-dirty")).toBeHidden({ timeout: 10_000 });
+        await expect(page.locator(".tb-dirty")).toBeHidden({ timeout: 15_000 });
     });
 
-    await test.step("legacy player still plays the edited tab", async () => {
-        await page.goto(`${tabPath}/player`);
-        await expectPlaybackAdvances(page, "api");
+    await test.step("create a folder", async () => {
+        await page.goto("/");
+        await page.getByRole("button", { name: "New" }).click();
+        await page.getByRole("menuitem", { name: "New folder…" }).click();
+        await page.locator("#new-folder-name").fill("Rock");
+        await page.getByRole("button", { name: "Create folder" }).click();
+        await expect(page.getByRole("button", { name: "Rock" })).toBeVisible();
+    });
+
+    await test.step("rename the tab", async () => {
+        await page.getByRole("button", { name: "Tab actions", exact: true }).click();
+        await page.getByRole("menuitem", { name: "Rename…" }).click();
+        await page.locator("#rename-input").fill("Smoke Renamed");
+        await page.getByRole("button", { name: "Rename", exact: true }).click();
+        await expect(page.getByText(/smoke renamed/i).first()).toBeVisible();
+    });
+
+    await test.step("favorite the tab; favorites view lists it", async () => {
+        await page.getByRole("button", { name: "Add to favorites", exact: true }).click();
+        await expect(
+            page.getByRole("button", { name: "Remove from favorites", exact: true }),
+        ).toBeVisible();
+        await page.goto("/favorites");
+        await expect(page.getByText(/smoke renamed/i).first()).toBeVisible();
+        await page.goto("/");
+    });
+
+    await test.step("move the tab into the folder", async () => {
+        await page.getByRole("button", { name: "Tab actions", exact: true }).click();
+        await page.getByRole("menuitem", { name: "Move to…" }).click();
+        const dialog = page.getByRole("dialog");
+        await dialog.getByRole("button", { name: "Rock" }).click();
+        await dialog.getByRole("button", { name: "Move here" }).click();
+        await expect(page.getByRole("button", { name: "Tab actions", exact: true }))
+            .toBeHidden();
+        // The tab is inside the folder now.
+        await page.getByRole("button", { name: "Rock" }).click();
+        await page.waitForURL(/dir=Rock/);
+        await expect(page.getByText(/smoke renamed/i).first()).toBeVisible();
+    });
+
+    await test.step("everything persists across a full reload", async () => {
+        await page.goto("/");
+        await expect(page.getByRole("button", { name: "Rock" })).toBeVisible();
+        await page.goto("/favorites");
+        await expect(page.getByText(/smoke renamed/i).first()).toBeVisible();
     });
 
     expect(fatalErrors(), "no fatal playback errors in the console").toEqual(

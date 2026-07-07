@@ -5,6 +5,27 @@ export function supportsFileSystemAccess(): boolean {
     return typeof window !== "undefined" && "showDirectoryPicker" in window;
 }
 
+// Remembers whether the user last chose a disk folder ("fsa") or browser
+// storage ("opfs"), so the choice survives reloads. FSA handles persist in
+// IndexedDB; the OPFS choice has no handle, hence this flag.
+const MODE_KEY = "tabcraft-storage-mode";
+
+function setStorageMode(mode: "fsa" | "opfs"): void {
+    try {
+        localStorage.setItem(MODE_KEY, mode);
+    } catch {
+        // Non-persistent contexts still work for the session.
+    }
+}
+
+function getStorageMode(): string | null {
+    try {
+        return localStorage.getItem(MODE_KEY);
+    } catch {
+        return null;
+    }
+}
+
 export function providerFromHandle(
     handle: FileSystemDirectoryHandle,
     canBrowseDisk: boolean,
@@ -23,11 +44,13 @@ export async function pickLocalFolder(): Promise<FsDirectoryProvider> {
         }
     ).showDirectoryPicker({ mode: "readwrite", id: "mytabs-root" });
     await saveRootHandle(handle);
+    setStorageMode("fsa");
     return providerFromHandle(handle, true);
 }
 
 export async function openOpfs(): Promise<FsDirectoryProvider> {
     const root = await navigator.storage.getDirectory();
+    setStorageMode("opfs");
     return providerFromHandle(root, false);
 }
 
@@ -47,6 +70,13 @@ async function ensurePermission(handle: FileSystemDirectoryHandle): Promise<bool
  * definitively dead/removed handle clears persistence.
  */
 export async function restoreProvider(): Promise<FsDirectoryProvider | null> {
+    if (getStorageMode() === "opfs") {
+        try {
+            return await openOpfs();
+        } catch {
+            return null;
+        }
+    }
     if (!supportsFileSystemAccess()) return null;
     const handle = await loadRootHandle();
     if (!handle) return null;

@@ -1,0 +1,129 @@
+/*
+ * Tailwind v4 entry for the redesigned (non-editor) pages.
+ *
+ * Coexistence contract with Bootstrap (which the editor depends on):
+ *  - No Tailwind preflight: Bootstrap's reboot stays the one global reset.
+ *  - Utilities are emitted `!important` so they beat Bootstrap's unlayered
+ *    element selectors (a, headings, forms) on redesigned pages. Editor
+ *    markup contains no Tailwind classes, so the editor cascade is untouched.
+ */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) important;
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Preflight-lite. Tailwind's real preflight is skipped (Bootstrap's reboot is
+ * the global reset), but border/button utilities assume these baselines. This
+ * lives in the lowest layer, so any unlayered CSS (Bootstrap, the editor's
+ * scoped SCSS) still wins wherever it sets these properties itself.
+ */
+@layer base {
+    *,
+    ::before,
+    ::after {
+        border-width: 0;
+        border-style: solid;
+        border-color: var(--border);
+    }
+
+    button {
+        background-color: transparent;
+        padding: 0;
+        color: inherit;
+        font: inherit;
+        text-align: inherit;
+        cursor: pointer;
+    }
+
+    input,
+    select,
+    textarea {
+        font: inherit;
+        color: inherit;
+    }
+}
+
+/* Light theme — cool paper neutral, indigo deepened for contrast. */
+:root {
+    --background: #f5f6f8;
+    --foreground: #1a2027;
+    --card: #ffffff;
+    --card-foreground: #1a2027;
+    --popover: #ffffff;
+    --popover-foreground: #1a2027;
+    --primary: #4d5fe3;
+    --primary-foreground: #ffffff;
+    --secondary: #e9ecf1;
+    --secondary-foreground: #1a2027;
+    --muted: #eceff3;
+    --muted-foreground: #5f6b78;
+    --accent: #e8ebfa;
+    --accent-foreground: #2a3550;
+    --destructive: #d23b34;
+    --destructive-foreground: #ffffff;
+    --border: #e2e5ea;
+    --input: #d7dbe2;
+    --ring: #4d5fe3;
+    --radius: 8px;
+    /* Six-string card motif */
+    --strings: #e2e5ea;
+}
+
+/* Dark theme — aligned with the editor's $st-* studio tokens. */
+.dark {
+    --background: #0d1015;
+    --foreground: #c7ced7;
+    --card: #14181e;
+    --card-foreground: #c7ced7;
+    --popover: #1b2027;
+    --popover-foreground: #c7ced7;
+    --primary: #5b6ef5;
+    --primary-foreground: #ffffff;
+    --secondary: #1b2027;
+    --secondary-foreground: #c7ced7;
+    --muted: #1b2027;
+    --muted-foreground: #7c8794;
+    --accent: #222a3a;
+    --accent-foreground: #dbe1ea;
+    --destructive: #d23b34;
+    --destructive-foreground: #ffffff;
+    --border: #242b33;
+    --input: #2b333d;
+    --ring: #5b6ef5;
+    --strings: #242b33;
+}
+
+@theme inline {
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+    --color-strings: var(--strings);
+
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+
+    --font-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+    --font-serif: "Spectral", Georgia, serif;
+}

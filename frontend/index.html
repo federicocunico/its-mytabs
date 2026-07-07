@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en">
     <head>
         <meta charset="UTF-8" />
-        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+        <link rel="alternate icon" type="image/x-icon" href="/favicon.ico" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -10,22 +11,25 @@
             href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap"
             rel="stylesheet"
         />
-        <title>It's MyTabs</title>
+        <title>TabCraft Studio</title>
+        <script>
+        // Pre-paint theme: mirror src/theme.ts so the first frame has the right
+        // colors (no light/dark flash). Studio routes re-force dark after mount.
+        (function () {
+            try {
+                var t = localStorage.getItem("theme");
+                var dark = t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+                document.documentElement.classList.toggle("dark", dark);
+                document.documentElement.setAttribute("data-bs-theme", dark ? "dark" : "light");
+            } catch (e) {
+                document.documentElement.classList.add("dark");
+                document.documentElement.setAttribute("data-bs-theme", "dark");
+            }
+        })();
+        </script>
     </head>
     <body>
         <div id="app"></div>
-        <script>
-        try {
-            const appConfigElement = document.getElementById("app-config");
-            if (!appConfigElement) {
-                throw new Error("App config element not found");
-            }
-            const config = JSON.parse(appConfigElement.textContent);
-            window.isDemo = config.isDemo;
-        } catch (e) {
-            window.isDemo = false;
-        }
-        </script>
         <script type="module" src="/src/main.ts"></script>
     </body>
 </html>

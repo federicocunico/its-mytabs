@@ -1,18 +1,6 @@
-import { io } from "socket.io-client";
 import { midiProgramCodeList } from "../../backend/common.ts";
 import { notify } from "@kyvg/vue3-notification";
 import { SettingSchema } from "./zod.ts";
-
-export function connectSocketIO() {
-    const socket = io(baseURL, {
-        query: {
-            clientType: "tabPlayer",
-        },
-        withCredentials: true,
-    });
-
-    return socket;
-}
 
 /**
  * Get the base URL

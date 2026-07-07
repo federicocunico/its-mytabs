@@ -1,17 +1,22 @@
 # Local-Folder Storage — Foundation (Phase 1) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox
+> (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a browser-side `StorageProvider` abstraction so tabs live in a user-chosen local folder (File System Access API) with an OPFS fallback, wire the editor to load/save through it, and ship a static Vercel build — no server required.
+**Goal:** Add a browser-side `StorageProvider` abstraction so tabs live in a user-chosen local folder (File System Access API) with an OPFS fallback, wire the editor to load/save through it, and ship
+a static Vercel build — no server required.
 
-**Architecture:** A framework-free storage layer under `frontend/src/storage/`. One provider class works over any `FileSystemDirectoryHandle` (real disk folder via `showDirectoryPicker`, or OPFS root). Per-tab metadata lives in a single `.mytabs/index.json`, reconciled with the real files on disk at listing time. The editor loads score bytes via the provider (`api.load(bytes)`) and saves via `provider.writeTab`. A build flag selects the default provider (local for the static/Vercel build, server for self-host).
+**Architecture:** A framework-free storage layer under `frontend/src/storage/`. One provider class works over any `FileSystemDirectoryHandle` (real disk folder via `showDirectoryPicker`, or OPFS
+root). Per-tab metadata lives in a single `.mytabs/index.json`, reconciled with the real files on disk at listing time. The editor loads score bytes via the provider (`api.load(bytes)`) and saves via
+`provider.writeTab`. A build flag selects the default provider (local for the static/Vercel build, server for self-host).
 
 **Tech Stack:** Vue 3 (options API, existing), TypeScript, Vite, Deno tasks, Vitest + happy-dom, alphaTab 1.8.0, File System Access API, OPFS, IndexedDB.
 
 ## Global Constraints
 
 - Frontend lives in `frontend/`; run frontend tests with `cd frontend && deno run -A npm:vitest run` (or `deno task test-frontend` from repo root).
-- Vitest include globs are `src/*.test.ts`, `src/editor/**/*.test.ts`, `src/playback/**/*.test.ts` (`frontend/vitest.config.ts`); storage tests go under `src/storage/**` — this plan adds `src/storage/**/*.test.ts` to the include list in Task 1.
+- Vitest include globs are `src/*.test.ts`, `src/editor/**/*.test.ts`, `src/playback/**/*.test.ts` (`frontend/vitest.config.ts`); storage tests go under `src/storage/**` — this plan adds
+  `src/storage/**/*.test.ts` to the include list in Task 1.
 - Formatting: `deno fmt` with indentWidth 4, double quotes, semicolons, lineWidth 200 (`deno.jsonc`). Run `deno fmt` on changed files before each commit.
 - Score file extensions come from `supportedFormatList` in `backend/common.ts`: `gp, gpx, gp3, gp4, gp5, musicxml, capx`. Do not hardcode a second copy — import it.
 - The abstraction must not reference any concrete backend; the editor talks only to the `StorageProvider` interface.
@@ -24,13 +29,16 @@
 ### Task 1: Storage types + path utilities
 
 **Files:**
+
 - Create: `frontend/src/storage/types.ts`
 - Create: `frontend/src/storage/paths.ts`
 - Create: `frontend/src/storage/paths.test.ts`
 - Modify: `frontend/vitest.config.ts` (add `src/storage/**/*.test.ts` to `include`)
 
 **Interfaces:**
-- Produces: the `StorageProvider`, `TabMeta`, `YoutubeSync`, `AudioSync`, `FolderEntry`, `TabEntry`, `ProviderCapabilities` types; and path helpers `joinPath`, `parentPath`, `basename`, `extname`, `stripExt`, `isScoreFile`, `normalizeRelPath`.
+
+- Produces: the `StorageProvider`, `TabMeta`, `YoutubeSync`, `AudioSync`, `FolderEntry`, `TabEntry`, `ProviderCapabilities` types; and path helpers `joinPath`, `parentPath`, `basename`, `extname`,
+  `stripExt`, `isScoreFile`, `normalizeRelPath`.
 
 - [ ] **Step 1: Add storage tests to the vitest include list**
 
@@ -157,8 +165,7 @@ describe("paths", () => {
 
 - [ ] **Step 4: Run it to verify it fails**
 
-Run: `cd frontend && deno run -A npm:vitest run src/storage/paths.test.ts`
-Expected: FAIL (cannot resolve `./paths.ts`).
+Run: `cd frontend && deno run -A npm:vitest run src/storage/paths.test.ts` Expected: FAIL (cannot resolve `./paths.ts`).
 
 - [ ] **Step 5: Write `frontend/src/storage/paths.ts`**
 
@@ -207,8 +214,7 @@ Note: confirm `supportedFormatList` is exported from `backend/common.ts` (grep i
 
 - [ ] **Step 6: Run tests to verify they pass**
 
-Run: `cd frontend && deno run -A npm:vitest run src/storage/paths.test.ts`
-Expected: PASS (6 tests).
+Run: `cd frontend && deno run -A npm:vitest run src/storage/paths.test.ts` Expected: PASS (6 tests).
 
 - [ ] **Step 7: Format and commit**
 
@@ -223,12 +229,15 @@ git commit -m "feat(storage): add StorageProvider types and path utilities"
 ### Task 2: `.mytabs/index.json` model + reconciliation
 
 **Files:**
+
 - Create: `frontend/src/storage/index-file.ts`
 - Create: `frontend/src/storage/index-file.test.ts`
 
 **Interfaces:**
+
 - Consumes: `TabMeta`, `TabEntry` (Task 1).
-- Produces: `INDEX_VERSION`, `type IndexData = { version: number; tabs: Record<string, TabMeta> }`, `defaultMeta(name: string): TabMeta`, `parseIndex(text: string | null): IndexData`, `serializeIndex(data: IndexData): string`, `reconcile(index: IndexData, diskTabPaths: string[]): IndexData` (adds default meta for new paths, drops paths not on disk, returns a new object).
+- Produces: `INDEX_VERSION`, `type IndexData = { version: number; tabs: Record<string, TabMeta> }`, `defaultMeta(name: string): TabMeta`, `parseIndex(text: string | null): IndexData`,
+  `serializeIndex(data: IndexData): string`, `reconcile(index: IndexData, diskTabPaths: string[]): IndexData` (adds default meta for new paths, drops paths not on disk, returns a new object).
 
 - [ ] **Step 1: Write the failing test `frontend/src/storage/index-file.test.ts`**
 
@@ -275,8 +284,7 @@ describe("index-file", () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `cd frontend && deno run -A npm:vitest run src/storage/index-file.test.ts`
-Expected: FAIL (cannot resolve `./index-file.ts`).
+Run: `cd frontend && deno run -A npm:vitest run src/storage/index-file.test.ts` Expected: FAIL (cannot resolve `./index-file.ts`).
 
 - [ ] **Step 3: Write `frontend/src/storage/index-file.ts`**
 
@@ -332,8 +340,7 @@ export function reconcile(index: IndexData, diskTabPaths: string[]): IndexData {
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd frontend && deno run -A npm:vitest run src/storage/index-file.test.ts`
-Expected: PASS (5 tests).
+Run: `cd frontend && deno run -A npm:vitest run src/storage/index-file.test.ts` Expected: PASS (5 tests).
 
 - [ ] **Step 5: Format and commit**
 
@@ -348,11 +355,15 @@ git commit -m "feat(storage): add .mytabs index model and disk reconciliation"
 ### Task 3: In-memory fake `FileSystemDirectoryHandle` (test helper)
 
 **Files:**
+
 - Create: `frontend/src/storage/fake-fs.ts`
 - Create: `frontend/src/storage/fake-fs.test.ts`
 
 **Interfaces:**
-- Produces: `createFakeDirectory(): FileSystemDirectoryHandle` — an in-memory implementation supporting `kind`, `name`, `getDirectoryHandle(name, {create})`, `getFileHandle(name, {create})`, `removeEntry(name, {recursive})`, async iteration via `entries()` and `[Symbol.asyncIterator]`, and file handles supporting `getFile()` (returns a `File`/Blob with `arrayBuffer()`/`text()`) and `createWritable()` (returns a writable with `write(data)` and `close()`). This is used by Tasks 5–6 to test the provider without a real filesystem.
+
+- Produces: `createFakeDirectory(): FileSystemDirectoryHandle` — an in-memory implementation supporting `kind`, `name`, `getDirectoryHandle(name, {create})`, `getFileHandle(name, {create})`,
+  `removeEntry(name, {recursive})`, async iteration via `entries()` and `[Symbol.asyncIterator]`, and file handles supporting `getFile()` (returns a `File`/Blob with `arrayBuffer()`/`text()`) and
+  `createWritable()` (returns a writable with `write(data)` and `close()`). This is used by Tasks 5–6 to test the provider without a real filesystem.
 
 - [ ] **Step 1: Write the failing test `frontend/src/storage/fake-fs.test.ts`**
 
@@ -397,8 +408,7 @@ describe("fake-fs", () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `cd frontend && deno run -A npm:vitest run src/storage/fake-fs.test.ts`
-Expected: FAIL (cannot resolve `./fake-fs.ts`).
+Run: `cd frontend && deno run -A npm:vitest run src/storage/fake-fs.test.ts` Expected: FAIL (cannot resolve `./fake-fs.ts`).
 
 - [ ] **Step 3: Write `frontend/src/storage/fake-fs.ts`**
 
@@ -428,7 +438,10 @@ class FakeWritable {
         const total = this.chunks.reduce((n, c) => n + c.length, 0);
         const out = new Uint8Array(total);
         let o = 0;
-        for (const c of this.chunks) { out.set(c, o); o += c.length; }
+        for (const c of this.chunks) {
+            out.set(c, o);
+            o += c.length;
+        }
         this.commit(out);
     }
 }
@@ -440,7 +453,9 @@ class FakeFileHandle {
         return new FakeFile(this.store.data);
     }
     async createWritable() {
-        return new FakeWritable((bytes) => { this.store.data = bytes; });
+        return new FakeWritable((bytes) => {
+            this.store.data = bytes;
+        });
     }
 }
 
@@ -489,8 +504,7 @@ export function createFakeDirectory(name = "root"): FileSystemDirectoryHandle {
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd frontend && deno run -A npm:vitest run src/storage/fake-fs.test.ts`
-Expected: PASS (3 tests).
+Run: `cd frontend && deno run -A npm:vitest run src/storage/fake-fs.test.ts` Expected: PASS (3 tests).
 
 - [ ] **Step 5: Format and commit**
 
@@ -505,12 +519,17 @@ git commit -m "test(storage): add in-memory fake FileSystemDirectoryHandle"
 ### Task 4: `FsDirectoryProvider` — read paths (listFolder, readTab, meta)
 
 **Files:**
+
 - Create: `frontend/src/storage/fs-directory-provider.ts`
 - Create: `frontend/src/storage/fs-directory-provider.test.ts`
 
 **Interfaces:**
+
 - Consumes: `StorageProvider`, `TabMeta`, `FolderEntry`, `TabEntry`, `ProviderCapabilities` (Task 1); index-file helpers (Task 2); path helpers (Task 1); `createFakeDirectory` (Task 3, tests only).
-- Produces: `class FsDirectoryProvider implements StorageProvider` with constructor `(root: FileSystemDirectoryHandle, capabilities: ProviderCapabilities)`. Also constant `META_DIR = ".mytabs"`, `INDEX_PATH = ".mytabs/index.json"`. This task implements `capabilities`, `listFolder`, `readTab`, `readMeta`, `writeMeta` and the private helpers `getDirHandle(path, create)`, `getFileHandle(path, create)`, `loadIndex()`, `saveIndex(data)`. Write ops (`writeTab`, `createFolder`, `rename`, `move`, `remove`) are stubbed to `throw new Error("not implemented")` here and completed in Task 5.
+- Produces: `class FsDirectoryProvider implements StorageProvider` with constructor `(root: FileSystemDirectoryHandle, capabilities: ProviderCapabilities)`. Also constant `META_DIR = ".mytabs"`,
+  `INDEX_PATH = ".mytabs/index.json"`. This task implements `capabilities`, `listFolder`, `readTab`, `readMeta`, `writeMeta` and the private helpers `getDirHandle(path, create)`,
+  `getFileHandle(path, create)`, `loadIndex()`, `saveIndex(data)`. Write ops (`writeTab`, `createFolder`, `rename`, `move`, `remove`) are stubbed to `throw new Error("not implemented")` here and
+  completed in Task 5.
 
 - [ ] **Step 1: Write the failing test `frontend/src/storage/fs-directory-provider.test.ts`**
 
@@ -565,15 +584,14 @@ describe("FsDirectoryProvider (read)", () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `cd frontend && deno run -A npm:vitest run src/storage/fs-directory-provider.test.ts`
-Expected: FAIL (cannot resolve `./fs-directory-provider.ts`).
+Run: `cd frontend && deno run -A npm:vitest run src/storage/fs-directory-provider.test.ts` Expected: FAIL (cannot resolve `./fs-directory-provider.ts`).
 
 - [ ] **Step 3: Write `frontend/src/storage/fs-directory-provider.ts`**
 
 ```ts
 import type { FolderEntry, ProviderCapabilities, StorageProvider, TabEntry, TabMeta } from "./types.ts";
 import { basename, extname, isScoreFile, joinPath, normalizeRelPath, parentPath } from "./paths.ts";
-import { defaultMeta, type IndexData, INDEX_VERSION, parseIndex, reconcile, serializeIndex } from "./index-file.ts";
+import { defaultMeta, INDEX_VERSION, type IndexData, parseIndex, reconcile, serializeIndex } from "./index-file.ts";
 
 export const META_DIR = ".mytabs";
 export const INDEX_PATH = ".mytabs/index.json";
@@ -679,12 +697,12 @@ export class FsDirectoryProvider implements StorageProvider {
 }
 ```
 
-Note: `reconcile` is imported for use by `writeTab`/listing hygiene in Task 5; if the linter flags it as unused here, add `void reconcile;` in a comment or leave the import out until Task 5 (the lint config excludes `no-unused-vars`, so it is safe to keep).
+Note: `reconcile` is imported for use by `writeTab`/listing hygiene in Task 5; if the linter flags it as unused here, add `void reconcile;` in a comment or leave the import out until Task 5 (the lint
+config excludes `no-unused-vars`, so it is safe to keep).
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd frontend && deno run -A npm:vitest run src/storage/fs-directory-provider.test.ts`
-Expected: PASS (3 tests).
+Run: `cd frontend && deno run -A npm:vitest run src/storage/fs-directory-provider.test.ts` Expected: PASS (3 tests).
 
 - [ ] **Step 5: Format and commit**
 
@@ -699,12 +717,15 @@ git commit -m "feat(storage): FsDirectoryProvider read paths (list, read, meta)"
 ### Task 5: `FsDirectoryProvider` — write paths (writeTab, folders, rename, move, remove)
 
 **Files:**
+
 - Modify: `frontend/src/storage/fs-directory-provider.ts` (replace the five stubbed methods)
 - Modify: `frontend/src/storage/fs-directory-provider.test.ts` (add write tests)
 
 **Interfaces:**
+
 - Consumes: everything from Task 4.
-- Produces: working `writeTab`, `createFolder`, `rename`, `move`, `remove`. `rename`/`move` return the new relative path and rekey the index entry. `writeTab` creates parent dirs as needed and refreshes the index entry for the path.
+- Produces: working `writeTab`, `createFolder`, `rename`, `move`, `remove`. `rename`/`move` return the new relative path and rekey the index entry. `writeTab` creates parent dirs as needed and
+  refreshes the index entry for the path.
 
 - [ ] **Step 1: Add failing write tests to `fs-directory-provider.test.ts`**
 
@@ -755,8 +776,7 @@ describe("FsDirectoryProvider (write)", () => {
 
 - [ ] **Step 2: Run to verify the new tests fail**
 
-Run: `cd frontend && deno run -A npm:vitest run src/storage/fs-directory-provider.test.ts`
-Expected: FAIL (the five methods throw "not implemented").
+Run: `cd frontend && deno run -A npm:vitest run src/storage/fs-directory-provider.test.ts` Expected: FAIL (the five methods throw "not implemented").
 
 - [ ] **Step 3: Replace the stubbed methods with implementations**
 
@@ -833,8 +853,7 @@ Note: the File System Access API has no atomic move; copy-then-delete is the por
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd frontend && deno run -A npm:vitest run src/storage/fs-directory-provider.test.ts`
-Expected: PASS (8 tests total).
+Run: `cd frontend && deno run -A npm:vitest run src/storage/fs-directory-provider.test.ts` Expected: PASS (8 tests total).
 
 - [ ] **Step 5: Format and commit**
 
@@ -849,11 +868,14 @@ git commit -m "feat(storage): FsDirectoryProvider write paths (writeTab, folders
 ### Task 6: Directory-handle persistence (IndexedDB)
 
 **Files:**
+
 - Create: `frontend/src/storage/handle-store.ts`
 - Create: `frontend/src/storage/handle-store.test.ts`
 
 **Interfaces:**
-- Produces: `saveRootHandle(handle: FileSystemDirectoryHandle): Promise<void>`, `loadRootHandle(): Promise<FileSystemDirectoryHandle | null>`, `clearRootHandle(): Promise<void>`. Backed by IndexedDB (store `mytabs-handles`, key `root`). happy-dom provides `indexedDB`; if unavailable the functions degrade to no-op/null.
+
+- Produces: `saveRootHandle(handle: FileSystemDirectoryHandle): Promise<void>`, `loadRootHandle(): Promise<FileSystemDirectoryHandle | null>`, `clearRootHandle(): Promise<void>`. Backed by IndexedDB
+  (store `mytabs-handles`, key `root`). happy-dom provides `indexedDB`; if unavailable the functions degrade to no-op/null.
 
 - [ ] **Step 1: Write the failing test `frontend/src/storage/handle-store.test.ts`**
 
@@ -880,12 +902,12 @@ describe("handle-store", () => {
 });
 ```
 
-Note: if happy-dom's IndexedDB cannot structured-clone the fake handle, wrap the test body in a `try/catch` that `expect`s graceful `null` — but first run it as written; happy-dom supports a basic IndexedDB.
+Note: if happy-dom's IndexedDB cannot structured-clone the fake handle, wrap the test body in a `try/catch` that `expect`s graceful `null` — but first run it as written; happy-dom supports a basic
+IndexedDB.
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `cd frontend && deno run -A npm:vitest run src/storage/handle-store.test.ts`
-Expected: FAIL (cannot resolve `./handle-store.ts`).
+Run: `cd frontend && deno run -A npm:vitest run src/storage/handle-store.test.ts` Expected: FAIL (cannot resolve `./handle-store.ts`).
 
 - [ ] **Step 3: Write `frontend/src/storage/handle-store.ts`**
 
@@ -942,8 +964,8 @@ export async function clearRootHandle(): Promise<void> {
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd frontend && deno run -A npm:vitest run src/storage/handle-store.test.ts`
-Expected: PASS (2 tests). If the round-trip test cannot clone the fake handle under happy-dom, adjust it to assert graceful behaviour as noted, then re-run.
+Run: `cd frontend && deno run -A npm:vitest run src/storage/handle-store.test.ts` Expected: PASS (2 tests). If the round-trip test cannot clone the fake handle under happy-dom, adjust it to assert
+graceful behaviour as noted, then re-run.
 
 - [ ] **Step 5: Format and commit**
 
@@ -958,10 +980,12 @@ git commit -m "feat(storage): persist the root directory handle in IndexedDB"
 ### Task 7: Provider selection + acquisition (local folder / OPFS)
 
 **Files:**
+
 - Create: `frontend/src/storage/select-provider.ts`
 - Create: `frontend/src/storage/select-provider.test.ts`
 
 **Interfaces:**
+
 - Consumes: `FsDirectoryProvider` (Tasks 4–5), handle-store (Task 6), types (Task 1).
 - Produces:
   - `supportsFileSystemAccess(): boolean` — `typeof window !== "undefined" && "showDirectoryPicker" in window`.
@@ -1002,8 +1026,7 @@ Note: `supportsFileSystemAccess` reads `window`; under happy-dom `window === glo
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `cd frontend && deno run -A npm:vitest run src/storage/select-provider.test.ts`
-Expected: FAIL (cannot resolve `./select-provider.ts`).
+Run: `cd frontend && deno run -A npm:vitest run src/storage/select-provider.test.ts` Expected: FAIL (cannot resolve `./select-provider.ts`).
 
 - [ ] **Step 3: Write `frontend/src/storage/select-provider.ts`**
 
@@ -1061,13 +1084,11 @@ export async function restoreProvider(): Promise<FsDirectoryProvider | null> {
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd frontend && deno run -A npm:vitest run src/storage/select-provider.test.ts`
-Expected: PASS (2 tests).
+Run: `cd frontend && deno run -A npm:vitest run src/storage/select-provider.test.ts` Expected: PASS (2 tests).
 
 - [ ] **Step 5: Run the whole storage suite**
 
-Run: `cd frontend && deno run -A npm:vitest run src/storage`
-Expected: PASS (all storage tests green).
+Run: `cd frontend && deno run -A npm:vitest run src/storage` Expected: PASS (all storage tests green).
 
 - [ ] **Step 6: Format and commit**
 
@@ -1082,10 +1103,12 @@ git commit -m "feat(storage): provider selection (local folder picker, OPFS, res
 ### Task 8: App-level storage session (Pinia-free singleton)
 
 **Files:**
+
 - Create: `frontend/src/storage/session.ts`
 - Create: `frontend/src/storage/session.test.ts`
 
 **Interfaces:**
+
 - Consumes: `StorageProvider`, `select-provider` (Task 7).
 - Produces: a reactive-friendly singleton the Vue layer reads:
   - `getProvider(): StorageProvider | null`
@@ -1118,8 +1141,7 @@ describe("storage session", () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `cd frontend && deno run -A npm:vitest run src/storage/session.test.ts`
-Expected: FAIL.
+Run: `cd frontend && deno run -A npm:vitest run src/storage/session.test.ts` Expected: FAIL.
 
 - [ ] **Step 3: Write `frontend/src/storage/session.ts`**
 
@@ -1153,8 +1175,7 @@ export async function initStorage(): Promise<StorageProvider | null> {
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd frontend && deno run -A npm:vitest run src/storage/session.test.ts`
-Expected: PASS.
+Run: `cd frontend && deno run -A npm:vitest run src/storage/session.test.ts` Expected: PASS.
 
 - [ ] **Step 5: Format and commit**
 
@@ -1169,14 +1190,18 @@ git commit -m "feat(storage): app-level provider session singleton"
 ### Task 9: Editor loads and saves through the provider
 
 **Files:**
+
 - Modify: `frontend/src/pages/TabEditor.vue`
 - Modify: `frontend/src/router.ts`
 
 **Interfaces:**
-- Consumes: `session.getProvider()`, `StorageProvider.readTab/writeTab/readMeta/writeMeta`.
-- Produces: a `/edit?path=<relpath>` route (or query on the existing editor route) that loads a tab from the provider by path and saves back to the same path. The provider path replaces the numeric `tabID` for local mode.
 
-**Context:** Today `TabEditor.vue` (`mounted`) fetches `/api/tab/:id`, mints a temp token, and sets `core.file` to a URL (lines ~305–360). Saving calls `saveScoreToServer` (`save()`), and view/color prefs load from `localStorage` keyed by tab id (`mounted`, ~265). This task adds a provider-backed path while leaving the server path intact behind a capability check.
+- Consumes: `session.getProvider()`, `StorageProvider.readTab/writeTab/readMeta/writeMeta`.
+- Produces: a `/edit?path=<relpath>` route (or query on the existing editor route) that loads a tab from the provider by path and saves back to the same path. The provider path replaces the numeric
+  `tabID` for local mode.
+
+**Context:** Today `TabEditor.vue` (`mounted`) fetches `/api/tab/:id`, mints a temp token, and sets `core.file` to a URL (lines ~305–360). Saving calls `saveScoreToServer` (`save()`), and view/color
+prefs load from `localStorage` keyed by tab id (`mounted`, ~265). This task adds a provider-backed path while leaving the server path intact behind a capability check.
 
 - [ ] **Step 1: Add a route that carries a storage path**
 
@@ -1227,13 +1252,15 @@ async loadFromProvider() {
 },
 ```
 
-- In `initContainer(tempToken)`: when `tempToken` is `null` (provider mode), omit `core.file` from the alphaTab settings (do not set a file URL); everything else stays. `scoreLoaded` handling already attaches the controller.
+- In `initContainer(tempToken)`: when `tempToken` is `null` (provider mode), omit `core.file` from the alphaTab settings (do not set a file URL); everything else stays. `scoreLoaded` handling already
+  attaches the controller.
 - Extract the keyboard + `beforeunload` wiring currently at the end of `mounted()` into a `_wireKeyboardAndUnload()` method and call it from both the server path and `loadFromProvider()`.
 - In `save()`, branch at the top:
 
 ```js
 if (this.storagePath && this.provider) {
-    this.saving = true; this.ui.saving = true;
+    this.saving = true;
+    this.ui.saving = true;
     try {
         this.restoreStaffVisibility();
         let bytes = this.ctrl.exportGp();
@@ -1244,13 +1271,14 @@ if (this.storagePath && this.provider) {
         }
         await this.provider.writeTab(targetPath, bytes);
         await this.provider.writeMeta(targetPath, { viewMode: this.viewMode, noteColorOn: this.noteColorOn, title: this.tab.title, artist: this.tab.artist });
-        if (targetPath !== this.storagePath) { this.storagePath = targetPath; }
+        if (targetPath !== this.storagePath) this.storagePath = targetPath;
         this.ctrl.markSaved();
         notify({ type: "success", text: "Saved" });
     } catch (e) {
         notify({ type: "error", title: "Save failed", text: e.message });
     } finally {
-        this.saving = false; this.ui.saving = false;
+        this.saving = false;
+        this.ui.saving = false;
     }
     return;
 }
@@ -1261,12 +1289,12 @@ if (this.storagePath && this.provider) {
 
 Because provider mode needs a real browser, verify with the app running:
 
-Run: `cd .. && deno task build-frontend && deno task start` (or the dev server), open the app, use the temporary picker (Task 10) to choose a folder containing a `.gp`, open it via `/edit?path=...`, edit a note, Ctrl+S, reload → the change persists in the file on disk.
+Run: `cd .. && deno task build-frontend && deno task start` (or the dev server), open the app, use the temporary picker (Task 10) to choose a folder containing a `.gp`, open it via `/edit?path=...`,
+edit a note, Ctrl+S, reload → the change persists in the file on disk.
 
 - [ ] **Step 5: Run the existing editor unit tests (no regressions)**
 
-Run: `cd frontend && deno run -A npm:vitest run src/editor && deno run -A npm:vitest run src/alphatab-shared.test.ts`
-Expected: PASS (unchanged).
+Run: `cd frontend && deno run -A npm:vitest run src/editor && deno run -A npm:vitest run src/alphatab-shared.test.ts` Expected: PASS (unchanged).
 
 - [ ] **Step 6: Format and commit**
 
@@ -1281,11 +1309,13 @@ git commit -m "feat(editor): load and save tabs through the storage provider"
 ### Task 10: Minimal boot gate (pick folder / OPFS) + interim tab list
 
 **Files:**
+
 - Create: `frontend/src/pages/LocalLibrary.vue` (interim; replaced by the full Drive UI in the Phase 2 plan)
 - Modify: `frontend/src/router.ts` (point `/` to `LocalLibrary` when in local mode)
 - Modify: `frontend/src/main.ts` (call `initStorage()` before mount) — adjust to the actual bootstrap file if named differently
 
 **Interfaces:**
+
 - Consumes: `initStorage`, `getProvider`, `setProvider`, `subscribe` (Task 8); `pickLocalFolder`, `openOpfs`, `supportsFileSystemAccess` (Task 7); `StorageProvider.listFolder` (Task 4).
 - Produces: a usable end-to-end path — pick a folder (or auto-OPFS on Firefox), see a flat list of the root folder's tabs, click one to open `/edit?path=...`.
 
@@ -1313,24 +1343,40 @@ export default defineComponent({
         return { provider: getProvider(), tabs: [], folders: [], supportsFsa: supportsFileSystemAccess(), error: "" };
     },
     async mounted() {
-        this._off = subscribe(() => { this.provider = getProvider(); this.refresh(); });
+        this._off = subscribe(() => {
+            this.provider = getProvider();
+            this.refresh();
+        });
         if (!this.provider && !this.supportsFsa) {
-            try { setProvider(await openOpfs()); } catch (e) { this.error = String(e); }
+            try {
+                setProvider(await openOpfs());
+            } catch (e) {
+                this.error = String(e);
+            }
         }
         this.provider = getProvider();
         await this.refresh();
     },
-    beforeUnmount() { this._off?.(); },
+    beforeUnmount() {
+        this._off?.();
+    },
     methods: {
         async pick() {
-            try { setProvider(await pickLocalFolder()); } catch (e) { if (e?.name !== "AbortError") this.error = String(e); }
+            try {
+                setProvider(await pickLocalFolder());
+            } catch (e) {
+                if (e?.name !== "AbortError") this.error = String(e);
+            }
         },
         async refresh() {
             if (!this.provider) return;
             const { folders, tabs } = await this.provider.listFolder("");
-            this.folders = folders; this.tabs = tabs;
+            this.folders = folders;
+            this.tabs = tabs;
         },
-        open(path) { this.$router.push({ name: "editPath", query: { path } }); },
+        open(path) {
+            this.$router.push({ name: "editPath", query: { path } });
+        },
     },
 });
 </script>
@@ -1357,7 +1403,8 @@ export default defineComponent({
 
 - [ ] **Step 3: Route `/` to the local library for the static build**
 
-In `frontend/src/router.ts`, import `LocalLibrary` and set the `home` route's component to `LocalLibrary` when the build targets local mode. For now, add a distinct route to avoid disturbing self-host:
+In `frontend/src/router.ts`, import `LocalLibrary` and set the `home` route's component to `LocalLibrary` when the build targets local mode. For now, add a distinct route to avoid disturbing
+self-host:
 
 ```ts
 { name: "localHome", path: "/library", component: () => import("./pages/LocalLibrary.vue"), meta: { hideFooter: true } },
@@ -1367,9 +1414,8 @@ In `frontend/src/router.ts`, import `LocalLibrary` and set the `home` route's co
 
 - [ ] **Step 4: Build and manually verify the full loop**
 
-Run: `cd .. && deno task build-frontend && deno task start`
-Open `http://localhost:47777/library` in Chrome → Choose folder → pick a folder with a `.gp` → click it → editor opens, edit, save, reload folder → change persisted. On Firefox → OPFS mode shows (no Choose folder), import path via editor still works.
-Expected: no console errors; save round-trips.
+Run: `cd .. && deno task build-frontend && deno task start` Open `http://localhost:47777/library` in Chrome → Choose folder → pick a folder with a `.gp` → click it → editor opens, edit, save, reload
+folder → change persisted. On Firefox → OPFS mode shows (no Choose folder), import path via editor still works. Expected: no console errors; save round-trips.
 
 - [ ] **Step 5: Commit**
 
@@ -1384,10 +1430,12 @@ git commit -m "feat(app): boot storage session + interim local library gate"
 ### Task 11: Vercel static build config
 
 **Files:**
+
 - Create: `vercel.json`
 - Create: `.vercelignore`
 
 **Interfaces:**
+
 - Produces: a static deployment that builds the frontend and serves `dist/` with SPA routing, no serverless functions.
 
 - [ ] **Step 1: Write `vercel.json`**
@@ -1402,7 +1450,8 @@ git commit -m "feat(app): boot storage session + interim local library gate"
 }
 ```
 
-Note: confirm Vercel's build image provides Deno; if not, set `buildCommand` to use `npx vite build` within `frontend/` and an `installCommand` of `cd frontend && npm install`. Verify against the actual `frontend/package.json` build script (`vite build`).
+Note: confirm Vercel's build image provides Deno; if not, set `buildCommand` to use `npx vite build` within `frontend/` and an `installCommand` of `cd frontend && npm install`. Verify against the
+actual `frontend/package.json` build script (`vite build`).
 
 - [ ] **Step 2: Write `.vercelignore`**
 
@@ -1416,8 +1465,7 @@ docs
 
 - [ ] **Step 3: Verify the static build locally**
 
-Run: `cd .. && deno task build-frontend`
-Expected: `dist/` produced. Serve `dist/` with any static server and confirm `/library` loads and deep links (e.g. `/edit?path=x`) resolve via the SPA rewrite.
+Run: `cd .. && deno task build-frontend` Expected: `dist/` produced. Serve `dist/` with any static server and confirm `/library` loads and deep links (e.g. `/edit?path=x`) resolve via the SPA rewrite.
 
 - [ ] **Step 4: Commit**
 
@@ -1432,13 +1480,11 @@ git commit -m "chore(deploy): static Vercel build config with SPA rewrite"
 
 - [ ] **Step 1: Run the entire frontend test suite**
 
-Run: `cd frontend && deno run -A npm:vitest run`
-Expected: all tests pass (existing + new storage tests).
+Run: `cd frontend && deno run -A npm:vitest run` Expected: all tests pass (existing + new storage tests).
 
 - [ ] **Step 2: Format check the whole change set**
 
-Run: `cd frontend && deno fmt src/storage src/pages/TabEditor.vue src/pages/LocalLibrary.vue src/router.ts` and `cd .. && deno fmt vercel.json`
-Expected: clean.
+Run: `cd frontend && deno fmt src/storage src/pages/TabEditor.vue src/pages/LocalLibrary.vue src/router.ts` and `cd .. && deno fmt vercel.json` Expected: clean.
 
 - [ ] **Step 3: Commit any formatting and finalize**
 
@@ -1452,6 +1498,7 @@ git commit -m "chore(storage): phase 1 formatting + wrap" || echo "nothing to co
 ## Self-Review
 
 **Spec coverage:**
+
 - §3 StorageProvider abstraction → Tasks 1, 4, 5 (interface + FS provider). ✓
 - §3 LocalFolder + OPFS providers → Task 7 (`pickLocalFolder`, `openOpfs`, one `FsDirectoryProvider`). ✓
 - §3 handle persistence + permission → Tasks 6, 7 (`restoreProvider`, `ensurePermission`). ✓
@@ -1460,13 +1507,18 @@ git commit -m "chore(storage): phase 1 formatting + wrap" || echo "nothing to co
 - §7 Vercel static build + SPA rewrite + no serverless → Task 11. ✓
 - §8 browser support/fallback (feature-detect, OPFS notice) → Tasks 7, 10. ✓
 - §9 error handling (permission denied, malformed index, corrupt file skipping) → Tasks 2 (parseIndex), 4 (listFolder skips non-score), 7 (permission), 10 (empty/error states). ✓
-- §10 testing (unit against fake handle + OPFS-in-env; E2E is called out as Chromium-gated) → Tasks 3–8; E2E deferred with rationale in §10 (real picker needs a gesture). Note: a Playwright E2E using OPFS is deferred to the Phase 2 plan where the real library UI exists to drive.
+- §10 testing (unit against fake handle + OPFS-in-env; E2E is called out as Chromium-gated) → Tasks 3–8; E2E deferred with rationale in §10 (real picker needs a gesture). Note: a Playwright E2E using
+  OPFS is deferred to the Phase 2 plan where the real library UI exists to drive.
 - ServerProvider (retained) → NOT built here by design (self-host keeps the current server path in `TabEditor.vue`, which Task 9 leaves intact behind the capability check). ✓
 - Library UI (§5) → explicitly Phase 2, not this plan. Task 10 ships only an interim gate/list. ✓
 - Media/audio/youtube (§5, §11 phase 3) → not this plan. ✓
 
-**Placeholder scan:** No "TBD/TODO". Task 9 references existing `TabEditor.vue` regions by behavior and gives the exact code to add; the one soft spot is "extract `_wireKeyboardAndUnload()` from the current mounted() tail" — the implementer must read those ~10 lines, which is acceptable (it is a mechanical extraction, not a design decision). Task 11 flags the Deno-on-Vercel assumption with a concrete fallback.
+**Placeholder scan:** No "TBD/TODO". Task 9 references existing `TabEditor.vue` regions by behavior and gives the exact code to add; the one soft spot is "extract `_wireKeyboardAndUnload()` from the
+current mounted() tail" — the implementer must read those ~10 lines, which is acceptable (it is a mechanical extraction, not a design decision). Task 11 flags the Deno-on-Vercel assumption with a
+concrete fallback.
 
-**Type consistency:** `StorageProvider` method names/signatures are identical across Tasks 1, 4, 5, 9, 10. `providerFromHandle(handle, canBrowseDisk)`, `pickLocalFolder`, `openOpfs`, `restoreProvider` names match between Tasks 7, 8, 10. `TabMeta` fields (`favorite`, `viewMode`, `noteColorOn`, `youtube`, `audio`, `title`, `artist`) are consistent across Tasks 1, 2, 4, 9. Index type `IndexData { version, tabs }` consistent Tasks 2, 4, 5.
+**Type consistency:** `StorageProvider` method names/signatures are identical across Tasks 1, 4, 5, 9, 10. `providerFromHandle(handle, canBrowseDisk)`, `pickLocalFolder`, `openOpfs`, `restoreProvider`
+names match between Tasks 7, 8, 10. `TabMeta` fields (`favorite`, `viewMode`, `noteColorOn`, `youtube`, `audio`, `title`, `artist`) are consistent across Tasks 1, 2, 4, 9. Index type
+`IndexData { version, tabs }` consistent Tasks 2, 4, 5.
 
 **Gaps fixed inline:** none outstanding.

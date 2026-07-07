@@ -12,5 +12,6 @@
         "semiColons": true,
         "singleQuote": false,
         "lineWidth": 200
-    }
+    },
+    "allowScripts": ["npm:@tailwindcss/oxide"]
 }

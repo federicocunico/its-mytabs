@@ -11,8 +11,10 @@ import { router } from "./router.ts";
 import { i18n } from "./i18n.ts";
 import { initStorage } from "./storage/session.ts";
 
-// CSS
+// CSS — main.scss (Bootstrap) first, Tailwind after so its layered
+// utilities are declared later in the sheet order.
 import "./styles/main.scss";
+import "./styles/tailwind.css";
 
 const app = createApp(App);
 app.use(router);
@@ -39,10 +41,8 @@ if (import.meta.hot) {
     import.meta.hot.on("vite:afterUpdate", () => {
         console.log("Hot update - reloading page to reset AlphaTab");
 
-        // tab page only
-        const isTabPage = window.location.pathname.startsWith("/tab/") &&
-            window.location.pathname.split("/").length === 3;
-        if (isTabPage) {
+        // editor page only
+        if (window.location.pathname.startsWith("/edit")) {
             window.location.reload();
         }
     });
