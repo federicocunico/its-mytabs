@@ -300,7 +300,7 @@ export default defineComponent({
     async mounted() {
         this.setting = getSetting();
 
-        this.storagePath = this.$route.query.path ? decodeURIComponent(this.$route.query.path) : null;
+        this.storagePath = this.$route.query.path ? String(this.$route.query.path) : null;
         this.provider = getProvider();
         if (this.storagePath && this.provider) {
             try {
