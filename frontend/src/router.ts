@@ -44,15 +44,25 @@ const routes: RouteRecordRaw[] = [
                         component: TabNew,
                     },
                     {
+                        // The editor is the default view for a tab; opening a tab
+                        // (or the old player URL) lands here. Query params (e.g.
+                        // ?track=) are preserved.
                         name: "tab",
                         path: "/tab/:id",
-                        component: Tab,
-                        meta: { hideFooter: true },
+                        redirect: (to) => ({ name: "tabEditor", params: to.params, query: to.query }),
                     },
                     {
                         name: "tabEditor",
                         path: "/tab/:id/editor",
                         component: TabEditor,
+                        meta: { hideFooter: true },
+                    },
+                    {
+                        // Legacy player, kept reachable for reference but no longer
+                        // linked from the UI.
+                        name: "tabPlayer",
+                        path: "/tab/:id/player",
+                        component: Tab,
                         meta: { hideFooter: true },
                     },
                     {

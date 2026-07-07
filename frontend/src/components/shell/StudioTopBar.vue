@@ -22,8 +22,21 @@ export default defineComponent({
         editDisabledTitle: { type: String, default: "" },
         /** Show the player-mode overflow menu (Details… etc.) — logged-in users only. */
         showDetails: { type: Boolean, default: false },
+        /** Editor visualization mode: "tab" | "score" | "score-tab". */
+        viewMode: { type: String, default: "tab" },
+        /** Whether per-string note colouring is on. */
+        noteColorOn: { type: Boolean, default: false },
     },
-    emits: ["command", "back", "switchMode"],
+    emits: ["command", "back", "switchMode", "setViewMode", "toggleNoteColor"],
+    data() {
+        return {
+            viewModes: [
+                { value: "tab", label: "Tab", title: "Tablature only" },
+                { value: "score", label: "Score", title: "Standard notation only" },
+                { value: "score-tab", label: "Score + Tab", title: "Standard notation and tablature" },
+            ],
+        };
+    },
     methods: {
         command(name, arg) {
             this.$emit("command", name, arg);
@@ -66,24 +79,46 @@ export default defineComponent({
 
         <div class="tb-spacer"></div>
 
-        <div class="tb-mode">
-            <button
-                type="button"
-                class="tb-mode-btn"
-                :class="{ active: mode === 'player' }"
-                @click="$emit('switchMode', 'player')"
-            >Player</button>
-            <button
-                type="button"
-                class="tb-mode-btn"
-                :class="{ active: mode === 'editor' }"
-                :disabled="editDisabled"
-                :title="editDisabled ? editDisabledTitle : 'Open score editor'"
-                @click="$emit('switchMode', 'editor')"
-            >Edit</button>
-        </div>
-
         <template v-if="mode === 'editor'">
+            <div class="tb-view" role="group" aria-label="View mode">
+                <button
+                    v-for="opt in viewModes"
+                    :key="opt.value"
+                    type="button"
+                    class="tb-view-btn"
+                    :class="{ active: viewMode === opt.value }"
+                    :title="opt.title"
+                    @click="$emit('setViewMode', opt.value)"
+                >{{ opt.label }}</button>
+            </div>
+
+            <button
+                type="button"
+                class="tb-toggle"
+                :class="{ active: noteColorOn }"
+                title="Colour notes by string"
+                @click="$emit('toggleNoteColor', !noteColorOn)"
+            >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="13.5" cy="6.5" r="2.5" />
+                    <circle cx="17.5" cy="10.5" r="2.5" />
+                    <circle cx="8.5" cy="7.5" r="2.5" />
+                    <circle cx="6.5" cy="12.5" r="2.5" />
+                    <path d="M12 2a10 10 0 1 0 0 20 3 3 0 0 0 0-6h-1.5a2.5 2.5 0 0 1 0-5H12a4 4 0 0 0 0-8z" />
+                </svg>
+                Colors
+            </button>
+
+            <div class="tb-group">
+                <button class="tb-icon" title="Keyboard shortcuts (?)" @click="command('help')">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                        <circle cx="12" cy="12" r="10" />
+                    </svg>
+                </button>
+            </div>
+
             <div class="tb-group">
                 <button class="tb-icon" title="Undo (Ctrl+Z)" :disabled="!state.canUndo" @click="command('undo')">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -245,7 +280,7 @@ export default defineComponent({
     flex: 1;
 }
 
-.tb-mode {
+.tb-view {
     display: flex;
     gap: 2px;
     padding: 3px;
@@ -255,7 +290,7 @@ export default defineComponent({
     flex: none;
 }
 
-.tb-mode-btn {
+.tb-view-btn {
     height: 28px;
     padding: 0 12px;
     border: none;
@@ -265,14 +300,40 @@ export default defineComponent({
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
+    white-space: nowrap;
 
     &.active {
         background: rgba(91, 110, 245, 0.15);
         color: $st-accent;
     }
-    &:disabled {
-        opacity: 0.4;
-        cursor: default;
+    &:hover:not(.active) {
+        color: $st-text;
+    }
+}
+
+.tb-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 12px;
+    border: 1px solid $st-border-2;
+    border-radius: 8px;
+    background: $st-panel-2;
+    color: $st-text-muted;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    flex: none;
+
+    &:hover {
+        background: #232b34;
+        color: $st-text;
+    }
+    &.active {
+        background: rgba(91, 110, 245, 0.15);
+        border-color: $st-accent;
+        color: $st-accent;
     }
 }
 

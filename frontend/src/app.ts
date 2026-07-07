@@ -37,6 +37,26 @@ export function getInstrumentName(midiProgram: number) {
     return midiProgramCodeList[midiProgram] || "Unknown";
 }
 
+/** Minimal shape of an alphaTab track needed to identify its instrument. */
+type InstrumentTrack = { playbackInfo?: { program?: number; primaryChannel?: number } };
+
+/** MIDI channel 10 (zero-based index 9) is the General MIDI percussion channel. */
+export function isPercussionTrack(track: InstrumentTrack): boolean {
+    return track?.playbackInfo?.primaryChannel === 9;
+}
+
+/**
+ * Display instrument for a track: percussion tracks read as "Drums" (they carry
+ * a program number that would otherwise map to a melodic instrument), everything
+ * else uses its General MIDI program name.
+ */
+export function getTrackInstrumentName(track: InstrumentTrack): string {
+    if (isPercussionTrack(track)) {
+        return "Drums";
+    }
+    return getInstrumentName(track?.playbackInfo?.program ?? -1);
+}
+
 export async function checkFetch(res: Response): Promise<void> {
     let data;
 

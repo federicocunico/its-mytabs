@@ -26,9 +26,10 @@ export const supportedAudioFormatCommaString = supportedAudioFormatList.map((ext
 }).join(", ");
 
 export const midiProgramCodeList = {
-    //0: "Acoustic Grand Piano",
-    // Not sure why, but in TuxGuitar and Songsterr, it reports 0 as Drums
-    0: "Drums",
+    // Standard General MIDI program names. Percussion is NOT program 0 — drums
+    // live on MIDI channel 10 (index 9); detect them with isPercussionTrack, not
+    // by program number. (Program 0 is Acoustic Grand Piano.)
+    0: "Acoustic Grand Piano",
     1: "Bright Acoustic Piano",
     2: "Electric Grand Piano",
     3: "Honky-tonk Piano",

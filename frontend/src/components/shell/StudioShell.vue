@@ -243,6 +243,10 @@ export default defineComponent({
     padding: 26px 30px 40px;
     display: flex;
     justify-content: center;
+    // Let the white sheet take its natural (content) height instead of being
+    // stretched to one viewport — otherwise tall scores overflow the card onto
+    // the dark background.
+    align-items: flex-start;
 }
 
 .st-bottom {

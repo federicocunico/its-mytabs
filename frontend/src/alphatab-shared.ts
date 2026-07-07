@@ -57,3 +57,39 @@ export function getStaveProfile(setting: { scoreStyle?: string }): alphaTab.Stav
         return alphaTab.StaveProfile.Default;
     }
 }
+
+/** The editor's three visualization modes (top-bar segmented control). */
+export type ViewMode = "tab" | "score" | "score-tab";
+
+/** A staff has no fretboard strings (percussion / drums) — a tablature staff can't represent it. */
+export function staffHasStrings(staff: alphaTab.model.Staff): boolean {
+    return staff.tuning.length > 0;
+}
+
+/**
+ * Force per-staff visibility on the track that's about to render, driven by the
+ * view mode. This is authoritative because alphaTab honours a staff's own
+ * `showTablature` / `showStandardNotation` flags over the stave profile, and
+ * some Guitar Pro files ship tracks with a staff that has *every* representation
+ * hidden — laying such a track out crashes alphaTab with "Cannot read
+ * properties of undefined (reading 'staves')".
+ *
+ * Rules: a tab staff needs strings; a stringless (percussion) staff always
+ * falls back to standard notation; and every staff keeps at least one visible
+ * representation.
+ *
+ * The flags are serialized on export, so callers that persist the score must
+ * restore the originals first (see the editor's snapshot/restore around save).
+ */
+export function applyTrackStaffVisibility(track: alphaTab.model.Track, mode: ViewMode): void {
+    for (const staff of track.staves) {
+        const hasStrings = staffHasStrings(staff);
+        let showTab = mode !== "score" && hasStrings;
+        let showStd = mode !== "tab" || !hasStrings;
+        if (!showTab && !showStd) {
+            showStd = true;
+        }
+        staff.showTablature = showTab;
+        staff.showStandardNotation = showStd;
+    }
+}

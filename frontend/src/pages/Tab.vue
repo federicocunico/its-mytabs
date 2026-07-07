@@ -1,5 +1,17 @@
 <script>
-import { ActionBuffer, baseURL, checkFetch, connectSocketIO, convertAlphaTexSyncPoint, generalError, getInstrumentName, getSetting, releaseWakeLock, requestWakeLock } from "../app.js";
+import {
+    ActionBuffer,
+    baseURL,
+    checkFetch,
+    connectSocketIO,
+    convertAlphaTexSyncPoint,
+    generalError,
+    getSetting,
+    getTrackInstrumentName,
+    isPercussionTrack,
+    releaseWakeLock,
+    requestWakeLock,
+} from "../app.js";
 import { buildDisplayResources, getFileURL, getStaveProfile, getTempToken } from "../alphatab-shared.ts";
 import { defineComponent } from "vue";
 import { BDropdown, BDropdownDivider, BDropdownItem } from "bootstrap-vue-next";
@@ -174,8 +186,8 @@ export default defineComponent({
             }
             return this.api.score.tracks.map((t, i) => ({
                 index: i,
-                name: t.name || getInstrumentName(t.playbackInfo.program),
-                instrument: getInstrumentName(t.playbackInfo.program),
+                name: t.name || getTrackInstrumentName(t),
+                instrument: getTrackInstrumentName(t),
                 color: trackColor(i),
                 solo: this.soloTrackID === i,
                 mute: !!this.muteTrackList[i],
@@ -806,7 +818,7 @@ export default defineComponent({
                     score.tracks.forEach((track) => {
                         this.tracks.push({
                             id: track.index,
-                            name: getInstrumentName(track.playbackInfo.program),
+                            name: getTrackInstrumentName(track),
                             program: track.playbackInfo.program,
                         });
                     });
@@ -1361,7 +1373,7 @@ export default defineComponent({
                 return false;
             }
             const track = this.api.score.tracks[this.selectedTrack];
-            return track.playbackInfo.program === 0;
+            return isPercussionTrack(track);
         },
 
         /**

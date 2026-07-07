@@ -2,9 +2,9 @@
 import { defineComponent } from "vue";
 import { notify } from "@kyvg/vue3-notification";
 import { BModal } from "bootstrap-vue-next";
-import { ActionBuffer, baseURL, checkFetch, generalError, getInstrumentName, getSetting } from "../app.js";
-import { buildDisplayResources, getFileURL, getTempToken } from "../alphatab-shared.ts";
-import { trackColor } from "../styles/colors.ts";
+import { ActionBuffer, baseURL, checkFetch, generalError, getSetting, getTrackInstrumentName } from "../app.js";
+import { applyTrackStaffVisibility, buildDisplayResources, getFileURL, getTempToken } from "../alphatab-shared.ts";
+import { STRING_COLORS_LIGHT, trackColor } from "../styles/colors.ts";
 import { EditorController } from "../editor/EditorController.ts";
 import { KeyboardController } from "../editor/keyboard-controller.ts";
 import { KEYMAP } from "../editor/keymap.ts";
@@ -38,6 +38,40 @@ const DURATION_LABELS = {
 
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
+// Per-tab display preferences (view mode + note colouring) persist client-side,
+// keyed by tab id, so each tab remembers how it was last viewed.
+const DISPLAY_PREFS_KEY = "mytabs-display-prefs";
+
+function loadDisplayPrefs(tabID) {
+    try {
+        const all = JSON.parse(localStorage.getItem(DISPLAY_PREFS_KEY) ?? "{}");
+        return all[tabID] ?? null;
+    } catch {
+        return null;
+    }
+}
+
+function saveDisplayPrefs(tabID, prefs) {
+    try {
+        const all = JSON.parse(localStorage.getItem(DISPLAY_PREFS_KEY) ?? "{}");
+        all[tabID] = prefs;
+        localStorage.setItem(DISPLAY_PREFS_KEY, JSON.stringify(all));
+    } catch {
+        // ignore quota / serialization failures — prefs are best-effort
+    }
+}
+
+/** Map the global user `scoreStyle` setting to one of the editor's three view modes. */
+function scoreStyleToViewMode(scoreStyle) {
+    if (scoreStyle === "score") {
+        return "score";
+    }
+    if (scoreStyle === "score-tab") {
+        return "score-tab";
+    }
+    return "tab";
+}
+
 export default defineComponent({
     components: {
         StudioShell,
@@ -65,12 +99,17 @@ export default defineComponent({
     overlayEl: null,
     renderScheduled: false,
 
+    /** @type {WeakMap<object, {showTablature: boolean, showStandardNotation: boolean}>} */
+    _origStaffVis: null,
+
     data() {
         return {
             tabID: -1,
             tab: {},
             trackIndex: 0,
             trackName: "",
+            viewMode: "tab",
+            noteColorOn: false,
             ready: false,
             playing: false,
             saving: false,
@@ -186,13 +225,15 @@ export default defineComponent({
             }
             return this.ctrl.score.tracks.map((t, i) => ({
                 index: i,
-                name: t.name || getInstrumentName(t.playbackInfo.program),
-                instrument: getInstrumentName(t.playbackInfo.program),
+                name: t.name || getTrackInstrumentName(t),
+                instrument: getTrackInstrumentName(t),
                 color: trackColor(i),
                 solo: this.soloTrackID === i,
                 mute: !!this.muteTrackList[i],
                 volume: this.trackVolumes[i] ?? 100,
-                selected: this.ctrl.cursor.trackIndex === i,
+                // Use the reactive trackIndex so the highlight follows track switches
+                // (ctrl.cursor is a plain object and doesn't trigger recomputation).
+                selected: this.trackIndex === i,
             }));
         },
 
@@ -255,6 +296,12 @@ export default defineComponent({
     async mounted() {
         this.setting = getSetting();
         this.tabID = this.$route.params.id;
+
+        // Seed view mode + note colouring from this tab's saved prefs, falling
+        // back to the user's global display settings.
+        const prefs = loadDisplayPrefs(this.tabID);
+        this.viewMode = prefs?.viewMode ?? scoreStyleToViewMode(this.setting.scoreStyle);
+        this.noteColorOn = prefs?.noteColorOn ?? (this.setting.noteColor !== undefined && this.setting.noteColor !== "none");
 
         const trackParam = new URLSearchParams(window.location.search).get("track");
         if (trackParam && !isNaN(parseInt(trackParam))) {
@@ -347,8 +394,9 @@ export default defineComponent({
                     playerMode: alphaTab.PlayerMode.EnabledSynthesizer,
                 },
                 display: {
-                    // The editor always shows the tablature; honor a standard-notation preference on top.
-                    staveProfile: this.setting.scoreStyle === "score" || this.setting.scoreStyle === "score-tab" ? alphaTab.StaveProfile.ScoreTab : alphaTab.StaveProfile.Tab,
+                    // Per-staff visibility (set in prepareRender) is authoritative
+                    // for the tab/score/score+tab views, so the profile stays Default.
+                    staveProfile: alphaTab.StaveProfile.Default,
                     resources: buildDisplayResources(this.setting),
                     scale: this.setting.scale ?? 1,
                 },
@@ -366,7 +414,7 @@ export default defineComponent({
                 requestRender: () => this.scheduleRender(),
                 onScoreReplaced: (score) => {
                     // the controller's cursor owns the authoritative track index
-                    this.applyBarValidationStyles();
+                    this.prepareRender();
                     this.api.renderScore(score, [this.ctrl.cursor.trackIndex]);
                 },
                 onStateChanged: () => this.refreshUi(),
@@ -395,7 +443,7 @@ export default defineComponent({
                 this.api.playbackSpeed = this.speed / 100;
                 this.api.masterVolume = this.masterVolume / 100;
 
-                this.applyBarValidationStyles();
+                this.prepareRender();
                 this.api.renderTracks([score.tracks[this.trackIndex]]);
                 this.ready = true;
                 this.refreshTransportPosition();
@@ -634,7 +682,7 @@ export default defineComponent({
                     this.showHelp = true;
                     break;
                 case "exit":
-                    this.$router.push(`/tab/${this.tabID}`);
+                    this.goToLibrary();
                     break;
             }
 
@@ -786,7 +834,7 @@ export default defineComponent({
             requestAnimationFrame(() => {
                 this.renderScheduled = false;
                 if (this.api && this.ctrl) {
-                    this.applyBarValidationStyles();
+                    this.prepareRender();
                     this.api.renderScore(this.ctrl.score, [this.ctrl.cursor.trackIndex]);
                 }
             });
@@ -928,18 +976,8 @@ export default defineComponent({
             }
         },
 
-        goToPlayer() {
-            this.$router.push(`/tab/${this.tabID}?track=${this.trackIndex}`);
-        },
-
         goToLibrary() {
             this.$router.push("/");
-        },
-
-        onSwitchMode(mode) {
-            if (mode === "player") {
-                this.goToPlayer();
-            }
         },
 
         transportToStart() {
@@ -1044,6 +1082,122 @@ export default defineComponent({
             } else {
                 this.dispatch("goToBar", barIndex);
             }
+        },
+
+        // ---- display settings (view mode + note colouring) ----
+
+        /** Everything that must run BEFORE a render: staff visibility, note colours, bar validation. */
+        prepareRender() {
+            this.applyStaffVisibility();
+            this.applyNoteColors();
+            this.applyBarValidationStyles();
+        },
+
+        /**
+         * Set the current track's per-staff visibility for the active view mode.
+         * This also repairs tracks whose staves are all hidden (some Guitar Pro
+         * drum tracks), which would otherwise crash alphaTab's layout. The show
+         * flags are serialized on export, so the originals are snapshotted here
+         * and restored before saving (restoreStaffVisibility).
+         */
+        applyStaffVisibility() {
+            if (!this.ctrl?.score) {
+                return;
+            }
+            const track = this.ctrl.score.tracks[this.ctrl.cursor.trackIndex];
+            if (!track) {
+                return;
+            }
+            if (!this._origStaffVis) {
+                this._origStaffVis = new WeakMap();
+            }
+            for (const staff of track.staves) {
+                if (!this._origStaffVis.has(staff)) {
+                    this._origStaffVis.set(staff, {
+                        showTablature: staff.showTablature,
+                        showStandardNotation: staff.showStandardNotation,
+                    });
+                }
+            }
+            applyTrackStaffVisibility(track, this.viewMode);
+        },
+
+        /** Restore original staff visibility so view-mode choices don't leak into saved files. */
+        restoreStaffVisibility() {
+            if (!this._origStaffVis || !this.ctrl?.score) {
+                return;
+            }
+            for (const track of this.ctrl.score.tracks) {
+                for (const staff of track.staves) {
+                    const orig = this._origStaffVis.get(staff);
+                    if (orig) {
+                        staff.showTablature = orig.showTablature;
+                        staff.showStandardNotation = orig.showStandardNotation;
+                    }
+                }
+            }
+        },
+
+        /** Colour (or clear) the current track's notes by string, matching the player. */
+        applyNoteColors() {
+            if (!this.ctrl?.score) {
+                return;
+            }
+            const track = this.ctrl.score.tracks[this.ctrl.cursor.trackIndex];
+            if (!track) {
+                return;
+            }
+            for (const staff of track.staves) {
+                for (const bar of staff.bars) {
+                    for (const voice of bar.voices) {
+                        for (const beat of voice.beats) {
+                            for (const note of beat.notes) {
+                                if (this.noteColorOn) {
+                                    const hex = STRING_COLORS_LIGHT[note.string];
+                                    if (!hex) {
+                                        continue;
+                                    }
+                                    const style = new alphaTab.model.NoteStyle();
+                                    const color = alphaTab.model.Color.fromJson(hex);
+                                    style.colors.set(alphaTab.model.NoteSubElement.GuitarTabFretNumber, color);
+                                    style.colors.set(alphaTab.model.NoteSubElement.StandardNotationNoteHead, color);
+                                    note.style = style;
+                                } else if (note.style) {
+                                    note.style = undefined;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+
+        /** Re-render the current track after a display-setting change. */
+        rerenderDisplay() {
+            if (!this.api || !this.ctrl || !this.ready) {
+                return;
+            }
+            this.prepareRender();
+            this.api.renderScore(this.ctrl.score, [this.ctrl.cursor.trackIndex]);
+        },
+
+        setViewMode(mode) {
+            if (this.viewMode === mode) {
+                return;
+            }
+            this.viewMode = mode;
+            this.persistDisplayPrefs();
+            this.rerenderDisplay();
+        },
+
+        toggleNoteColor(on) {
+            this.noteColorOn = on;
+            this.persistDisplayPrefs();
+            this.rerenderDisplay();
+        },
+
+        persistDisplayPrefs() {
+            saveDisplayPrefs(this.tabID, { viewMode: this.viewMode, noteColorOn: this.noteColorOn });
         },
 
         /** Paint invalid bars' numbers red via alphaTab's style API (must run BEFORE a render). */
@@ -1285,6 +1439,8 @@ export default defineComponent({
             this.saving = true;
             this.ui.saving = true;
             try {
+                // Strip view-only staff visibility so the saved file keeps its original layout.
+                this.restoreStaffVisibility();
                 const bytes = this.ctrl.exportGp();
                 await saveScoreToServer(baseURL, this.tabID, bytes);
                 this.ctrl.markSaved();
@@ -1298,6 +1454,8 @@ export default defineComponent({
         },
 
         download() {
+            // Strip view-only staff visibility so the exported file keeps its original layout.
+            this.restoreStaffVisibility();
             const bytes = this.ctrl.exportGp();
             const name = [this.tab.artist, this.tab.title].filter(Boolean).join(" - ") || "tab";
             downloadGp(bytes, name);
@@ -1336,9 +1494,12 @@ export default defineComponent({
                 :tempo="studioBadges.tempo"
                 :time-signature="studioBadges.timeSignature"
                 :state="ui"
+                :view-mode="viewMode"
+                :note-color-on="noteColorOn"
                 @command="dispatch"
                 @back="goToLibrary"
-                @switch-mode="onSwitchMode"
+                @set-view-mode="setViewMode"
+                @toggle-note-color="toggleNoteColor"
             />
         </template>
 
