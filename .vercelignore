@@ -1,5 +1,14 @@
-backend
-data
+# NOTE: the frontend build imports backend/common.ts and reads the root
+# deno.jsonc, and vite's visualizer writes ../data/stats.html — so `backend`
+# and the `data/` directory must stay in the build upload. Vercel serves only
+# `dist/`, so uploaded (non-dist) files are never publicly reachable.
+# We only trim the heavy/irrelevant content.
+data/tabs
+data/to_test
+data/deleted
+data/config.db
+data/config.db-shm
+data/config.db-wal
 e2e
 extra
 docs
