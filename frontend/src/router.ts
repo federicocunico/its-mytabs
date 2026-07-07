@@ -2,9 +2,6 @@ import { createRouter, createWebHistory, RouteRecordRaw } from "vue-router";
 
 import Layout from "./layouts/Layout.vue";
 import Dashboard from "./pages/Dashboard.vue";
-import Home from "./pages/Home.vue";
-import Register from "./pages/Register.vue";
-import Login from "./pages/Login.vue";
 import TabConfig from "./pages/TabConfig.vue";
 import Settings from "./pages/Settings.vue";
 import TabNew from "./pages/TabNew.vue";
@@ -23,18 +20,13 @@ const routes: RouteRecordRaw[] = [
                 component: Dashboard,
                 children: [
                     {
-                        // Local-folder library is the default entry (docker + static/Vercel).
-                        // The old server-backed library stays reachable at /server-library.
+                        // Local-folder library is the only entry (docker + static/Vercel).
+                        // The app is client-side and requires no login.
                         name: "home",
                         path: "/",
                         alias: "/library",
                         component: LocalLibrary,
                         meta: { hideFooter: true },
-                    },
-                    {
-                        name: "serverHome",
-                        path: "/server-library",
-                        component: Home,
                     },
                     {
                         path: "/tab/:id/edit/info",
@@ -88,16 +80,9 @@ const routes: RouteRecordRaw[] = [
                     },
                 ],
             },
-            {
-                name: "register",
-                path: "/register",
-                component: Register,
-            },
-            {
-                name: "login",
-                path: "/login",
-                component: Login,
-            },
+            // Login/registration are retired (no auth). Old links fall back to home.
+            { path: "/register", redirect: "/" },
+            { path: "/login", redirect: "/" },
         ],
     },
 ];

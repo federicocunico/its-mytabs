@@ -1,10 +1,10 @@
 <script>
 import { defineComponent } from "vue";
 import { BButton, BButtonGroup, BFormInput, BSpinner } from "bootstrap-vue-next";
-import { authClient, isLoggedIn } from "../auth-client.ts";
-import { notify } from "@kyvg/vue3-notification";
 import Logo from "../components/Logo.vue";
 
+// No authentication: the app runs entirely on the user's machine and their tabs
+// stay in a local folder, so it's free and open to anyone with no account.
 export default defineComponent({
     components: {
         BButton,
@@ -15,14 +15,8 @@ export default defineComponent({
     },
     data() {
         return {
-            isLoggedIn: false,
-            ready: false,
             fixedNavbar: false,
         };
-    },
-    async mounted() {
-        this.isLoggedIn = await isLoggedIn();
-        this.ready = true;
     },
     watch: {
         $route() {
@@ -30,10 +24,6 @@ export default defineComponent({
         },
     },
     methods: {
-        async signOut() {
-            const res = await authClient.signOut();
-            this.$router.push("/login");
-        },
         onSetFixedHeader(val) {
             this.fixedNavbar = val;
         },
@@ -51,32 +41,15 @@ export default defineComponent({
             <Logo />
 
             <div class="toolbar">
-                <div class="left" v-show="ready">
-                    <router-link to="/" v-if="isLoggedIn">
+                <div class="left">
+                    <router-link to="/">
                         <font-awesome-icon :icon='["fas", "folder"]' />
                         Tabs
-                    </router-link>
-
-                    <router-link to="/new-tab" v-if="isLoggedIn">
-                        <font-awesome-icon :icon='["fas", "plus"]' />
-                        New Tab
                     </router-link>
 
                     <router-link to="/settings">
                         <font-awesome-icon :icon='["fas", "gear"]' />
                         Settings
-                    </router-link>
-                </div>
-
-                <div class="right" v-show="ready">
-                    <a href="#" @click.prevent="signOut()" v-if="isLoggedIn">
-                        <font-awesome-icon :icon='["fas", "arrow-right-from-bracket"]' />
-                        Log out
-                    </a>
-
-                    <router-link to="/login" v-else>
-                        <font-awesome-icon :icon='["fas", "arrow-right-to-bracket"]' />
-                        Log in
                     </router-link>
                 </div>
             </div>
