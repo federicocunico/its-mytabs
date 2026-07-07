@@ -6,6 +6,7 @@ import { ActionBuffer, baseURL, checkFetch, generalError, getSetting, getTrackIn
 import { applyTrackStaffVisibility, buildDisplayResources, getFileURL, getTempToken } from "../alphatab-shared.ts";
 import { STRING_COLORS_LIGHT, trackColor } from "../styles/colors.ts";
 import { EditorController } from "../editor/EditorController.ts";
+import { caretYOnLines } from "../editor/caret-geometry.ts";
 import { indexAfterMove } from "../editor/mutations/structure.ts";
 import { KeyboardController } from "../editor/keyboard-controller.ts";
 import { KEYMAP } from "../editor/keymap.ts";
@@ -1349,13 +1350,15 @@ export default defineComponent({
             overlay.style.width = `${rect.w + 6}px`;
             overlay.style.height = `${rect.h + 6}px`;
 
-            // String caret. Prefer a real note head so the caret is always exactly on
-            // a rendered note (correct Y): the note on the cursor's string if there is
-            // one, otherwise the beat's note nearest the cursor string. Only when the
-            // beat has no rendered notes at all (a rest) do we fall back to interpolating
-            // across the beat — and there is then no visible note to mismatch with.
-            // (The old code interpolated over the beat's stem-inclusive visualBounds even
-            // when notes were present, dropping the caret onto an empty lower line.)
+            // String caret. It marks where typed input lands, so it must sit on the
+            // CURSOR's string line, not on some other string's note:
+            //  - note on the cursor's string -> anchor to its note head (exact).
+            //  - otherwise, in tab view -> place it on the string's staff line using
+            //    the system's lineAlignedBounds (y = top line, y + h = bottom line).
+            //    Anchoring to the nearest note or interpolating over the beat's
+            //    stem-inclusive visualBounds drew the caret offset from the tab lines.
+            //  - score / score+tab (no single tab-line span) -> nearest note head,
+            //    then beat-bounds interpolation as the last resort.
             const caret = this.ensureCaret();
             const staff = r.bar.staff;
             const stringCount = staff.tuning.length;
@@ -1365,14 +1368,22 @@ export default defineComponent({
             let caretW = rect.w;
 
             const notes = beatBounds.notes ?? [];
-            let noteBounds = r.note ? notes.find((nb) => nb.note === r.note) : null;
-            if (!noteBounds && notes.length > 0) {
-                noteBounds = notes.reduce((best, nb) => Math.abs((nb.note?.string ?? 0) - targetString) < Math.abs((best.note?.string ?? 0) - targetString) ? nb : best);
-            }
-            if (noteBounds) {
-                caretY = noteBounds.noteHeadBounds.y + noteBounds.noteHeadBounds.h / 2;
-                caretX = noteBounds.noteHeadBounds.x - 2;
-                caretW = noteBounds.noteHeadBounds.w + 4;
+            const noteOnString = r.note ? notes.find((nb) => nb.note === r.note) : null;
+            const lines = this.viewMode === "tab" ? beatBounds.barBounds?.masterBarBounds?.lineAlignedBounds : null;
+            if (noteOnString) {
+                caretY = noteOnString.noteHeadBounds.y + noteOnString.noteHeadBounds.h / 2;
+                caretX = noteOnString.noteHeadBounds.x - 2;
+                caretW = noteOnString.noteHeadBounds.w + 4;
+            } else if (lines) {
+                caretY = caretYOnLines(lines, stringCount, targetString);
+                caretW = Math.min(rect.w, 18);
+                const centerX = beatBounds.onNotesX || rect.x + rect.w / 2;
+                caretX = centerX - caretW / 2;
+            } else if (notes.length > 0) {
+                const nearest = notes.reduce((best, nb) => Math.abs((nb.note?.string ?? 0) - targetString) < Math.abs((best.note?.string ?? 0) - targetString) ? nb : best);
+                caretY = nearest.noteHeadBounds.y + nearest.noteHeadBounds.h / 2;
+                caretX = nearest.noteHeadBounds.x - 2;
+                caretW = nearest.noteHeadBounds.w + 4;
             } else {
                 // Rest / no rendered notes: even interpolation (model string 1 = bottom line).
                 const fraction = (stringCount - targetString) / Math.max(1, stringCount - 1);
