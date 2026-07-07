@@ -40,16 +40,39 @@ async function ensurePermission(handle: FileSystemDirectoryHandle): Promise<bool
     return (await h.requestPermission({ mode: "readwrite" })) === "granted";
 }
 
-/** Restore a previously-picked local folder if the handle is still authorized. */
+/**
+ * Restore a previously-picked local folder if the handle is still authorized.
+ * Query-only: without a user gesture the browser can't grant permission, so we
+ * must not treat "not granted yet" as a reason to wipe the saved handle. Only a
+ * definitively dead/removed handle clears persistence.
+ */
 export async function restoreProvider(): Promise<FsDirectoryProvider | null> {
     if (!supportsFileSystemAccess()) return null;
     const handle = await loadRootHandle();
     if (!handle) return null;
     try {
-        if (await ensurePermission(handle)) return providerFromHandle(handle, true);
-    } catch {
-        // fall through
+        const perm = await (handle as unknown as { queryPermission(o: { mode: string }): Promise<PermissionState> })
+            .queryPermission({ mode: "readwrite" });
+        if (perm === "granted") return providerFromHandle(handle, true);
+        return null; // not granted yet — keep the handle for a gesture-based reconnect
+    } catch (e) {
+        // Only a dead/removed handle should clear persistence.
+        if (e && (e as { name?: string }).name === "NotFoundError") {
+            await clearRootHandle();
+        }
+        return null;
     }
-    await clearRootHandle();
+}
+
+/** Gesture-based reconnect: call from a click handler (e.g. a "Reconnect" button) to request permission. */
+export async function reconnectProvider(): Promise<FsDirectoryProvider | null> {
+    if (!supportsFileSystemAccess()) return null;
+    const handle = await loadRootHandle();
+    if (!handle) return null;
+    try {
+        if (await ensurePermission(handle)) return providerFromHandle(handle, true);
+    } catch (e) {
+        if (e && (e as { name?: string }).name === "NotFoundError") await clearRootHandle();
+    }
     return null;
 }

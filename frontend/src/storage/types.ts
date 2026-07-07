@@ -58,6 +58,7 @@ export interface StorageProvider {
     readonly capabilities: ProviderCapabilities;
     listFolder(path: string): Promise<{ folders: FolderEntry[]; tabs: TabEntry[] }>;
     readTab(path: string): Promise<{ bytes: Uint8Array; meta: TabMeta }>;
+    exists(path: string): Promise<boolean>;
     writeTab(path: string, bytes: Uint8Array): Promise<void>;
     createFolder(path: string): Promise<void>;
     rename(path: string, newName: string): Promise<string>;

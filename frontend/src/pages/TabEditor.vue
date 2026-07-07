@@ -1475,9 +1475,18 @@ export default defineComponent({
                     this.restoreStaffVisibility();
                     const bytes = this.ctrl.exportGp();
                     let targetPath = this.storagePath;
-                    // convert-to-.gp: write a new .gp beside a non-.gp original, leave original intact
+                    // convert-to-.gp: write a new .gp beside a non-.gp original, leave original intact.
+                    // If a different .gp already exists at that name, pick a free "(n)" name instead of overwriting it.
                     if (!targetPath.toLowerCase().endsWith(".gp")) {
-                        targetPath = joinPath(parentPath(targetPath), stripExt(basename(targetPath)) + ".gp");
+                        const dir = parentPath(targetPath);
+                        const stem = stripExt(basename(targetPath));
+                        let candidate = joinPath(dir, stem + ".gp");
+                        let n = 1;
+                        while (candidate !== this.storagePath && (await this.provider.exists(candidate))) {
+                            candidate = joinPath(dir, stem + " (" + n + ").gp");
+                            n++;
+                        }
+                        targetPath = candidate;
                     }
                     await this.provider.writeTab(targetPath, bytes);
                     await this.provider.writeMeta(targetPath, { viewMode: this.viewMode, noteColorOn: this.noteColorOn, title: this.tab.title, artist: this.tab.artist });

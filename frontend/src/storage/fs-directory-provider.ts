@@ -1,6 +1,6 @@
 import type { FolderEntry, ProviderCapabilities, StorageProvider, TabEntry, TabMeta } from "./types.ts";
 import { basename, extname, isScoreFile, joinPath, normalizeRelPath, parentPath } from "./paths.ts";
-import { defaultMeta, INDEX_VERSION, type IndexData, parseIndex, reconcile, serializeIndex } from "./index-file.ts";
+import { defaultMeta, INDEX_VERSION, type IndexData, parseIndex, serializeIndex } from "./index-file.ts";
 
 export const META_DIR = ".mytabs";
 export const INDEX_PATH = ".mytabs/index.json";
@@ -74,6 +74,15 @@ export class FsDirectoryProvider implements StorageProvider {
         return { bytes, meta: await this.readMeta(path) };
     }
 
+    async exists(path: string): Promise<boolean> {
+        try {
+            await this.getFileHandle(path, false);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
     async readMeta(path: string): Promise<TabMeta> {
         const index = await this.loadIndex();
         return index.tabs[normalizeRelPath(path)] ?? defaultMeta(basename(path));
@@ -127,6 +136,12 @@ export class FsDirectoryProvider implements StorageProvider {
 
     async rename(path: string, newName: string): Promise<string> {
         const toPath = joinPath(parentPath(path), newName);
+        if (normalizeRelPath(toPath) === normalizeRelPath(path)) {
+            return normalizeRelPath(toPath);
+        }
+        if (await this.exists(toPath)) {
+            throw new Error(`Target already exists: ${normalizeRelPath(toPath)}`);
+        }
         await this.copyBytes(path, toPath);
         const parent = await this.getDirHandle(parentPath(path), false);
         await parent.removeEntry(basename(path));
@@ -136,6 +151,12 @@ export class FsDirectoryProvider implements StorageProvider {
 
     async move(fromPath: string, toFolder: string): Promise<string> {
         const toPath = joinPath(toFolder, basename(fromPath));
+        if (normalizeRelPath(toPath) === normalizeRelPath(fromPath)) {
+            return normalizeRelPath(toPath);
+        }
+        if (await this.exists(toPath)) {
+            throw new Error(`Target already exists: ${normalizeRelPath(toPath)}`);
+        }
         await this.copyBytes(fromPath, toPath);
         const parent = await this.getDirHandle(parentPath(fromPath), false);
         await parent.removeEntry(basename(fromPath));

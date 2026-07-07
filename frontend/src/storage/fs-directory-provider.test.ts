@@ -43,6 +43,12 @@ describe("FsDirectoryProvider (read)", () => {
         expect(meta.favorite).toBe(true);
         expect(meta.viewMode).toBe("score");
     });
+
+    it("exists reports presence of a tab", async () => {
+        const p = await seed();
+        expect(await p.exists("top.gp")).toBe(true);
+        expect(await p.exists("nope.gp")).toBe(false);
+    });
 });
 
 describe("FsDirectoryProvider (write)", () => {
@@ -85,5 +91,17 @@ describe("FsDirectoryProvider (write)", () => {
         const p = await seed();
         await p.remove("top.gp");
         expect((await p.listFolder("")).tabs.map((t) => t.name)).not.toContain("top.gp");
+    });
+
+    it("rename to the same name is a no-op that returns the path", async () => {
+        const p = await seed();
+        expect(await p.rename("top.gp", "top.gp")).toBe("top.gp");
+        expect((await p.listFolder("")).tabs.map((t) => t.name)).toContain("top.gp");
+    });
+
+    it("move onto an existing target rejects", async () => {
+        const p = await seed();
+        await p.writeTab("Rock/top.gp", new Uint8Array([80, 75, 1, 1]));
+        await expect(p.move("top.gp", "Rock")).rejects.toThrow(/exists/i);
     });
 });
