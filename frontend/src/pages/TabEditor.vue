@@ -12,6 +12,7 @@ import { downloadGp, saveScoreToServer } from "../editor/persistence.ts";
 import { barIndexFromTick, buildPresenceMatrix, buildSections, formatTimeMs, loopBarSpan, scoreEndTick, tickToMs } from "../studio/score-nav.ts";
 import { getKeySignature } from "../util.ts";
 import { getProvider } from "../storage/session.ts";
+import { basename, joinPath, parentPath, stripExt } from "../storage/paths.ts";
 import StudioShell from "../components/shell/StudioShell.vue";
 import StudioTopBar from "../components/shell/StudioTopBar.vue";
 import EditorStatusBar from "../components/editor/EditorStatusBar.vue";
@@ -302,7 +303,11 @@ export default defineComponent({
         this.storagePath = this.$route.query.path ? decodeURIComponent(this.$route.query.path) : null;
         this.provider = getProvider();
         if (this.storagePath && this.provider) {
-            await this.loadFromProvider();
+            try {
+                await this.loadFromProvider();
+            } catch (e) {
+                notify({ type: "error", title: "Could not open tab", text: e.message });
+            }
             return;
         }
 
@@ -1468,11 +1473,11 @@ export default defineComponent({
                 this.ui.saving = true;
                 try {
                     this.restoreStaffVisibility();
-                    let bytes = this.ctrl.exportGp();
+                    const bytes = this.ctrl.exportGp();
                     let targetPath = this.storagePath;
                     // convert-to-.gp: write a new .gp beside a non-.gp original, leave original intact
                     if (!targetPath.toLowerCase().endsWith(".gp")) {
-                        targetPath = targetPath.replace(/\.[^.]+$/, "") + ".gp";
+                        targetPath = joinPath(parentPath(targetPath), stripExt(basename(targetPath)) + ".gp");
                     }
                     await this.provider.writeTab(targetPath, bytes);
                     await this.provider.writeMeta(targetPath, { viewMode: this.viewMode, noteColorOn: this.noteColorOn, title: this.tab.title, artist: this.tab.artist });
