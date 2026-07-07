@@ -11,6 +11,7 @@ import { KEYMAP } from "../editor/keymap.ts";
 import { downloadGp, saveScoreToServer } from "../editor/persistence.ts";
 import { barIndexFromTick, buildPresenceMatrix, buildSections, formatTimeMs, loopBarSpan, scoreEndTick, tickToMs } from "../studio/score-nav.ts";
 import { getKeySignature } from "../util.ts";
+import { getProvider } from "../storage/session.ts";
 import StudioShell from "../components/shell/StudioShell.vue";
 import StudioTopBar from "../components/shell/StudioTopBar.vue";
 import EditorStatusBar from "../components/editor/EditorStatusBar.vue";
@@ -105,6 +106,8 @@ export default defineComponent({
     data() {
         return {
             tabID: -1,
+            storagePath: null,
+            provider: null,
             tab: {},
             trackIndex: 0,
             trackName: "",
@@ -295,6 +298,14 @@ export default defineComponent({
 
     async mounted() {
         this.setting = getSetting();
+
+        this.storagePath = this.$route.query.path ? decodeURIComponent(this.$route.query.path) : null;
+        this.provider = getProvider();
+        if (this.storagePath && this.provider) {
+            await this.loadFromProvider();
+            return;
+        }
+
         this.tabID = this.$route.params.id;
 
         // Seed view mode + note colouring from this tab's saved prefs, falling
@@ -325,21 +336,7 @@ export default defineComponent({
             return;
         }
 
-        this.kb = new KeyboardController((command, arg) => this.dispatch(command, arg));
-        this.kb.isBlocked = () => this.showHelp || this.showBend || this.showBarSettings || this.showTracks || this.showLeaveModal;
-        this._onKeydown = (e) => {
-            this.kb.handleKeydown(e);
-            // Reflect the fret buffer in the status bar
-            this.status.pendingFret = this.kb.pendingFret;
-        };
-        window.addEventListener("keydown", this._onKeydown);
-
-        this._onBeforeUnload = (e) => {
-            if (this.ctrl?.dirty) {
-                e.preventDefault();
-            }
-        };
-        window.addEventListener("beforeunload", this._onBeforeUnload);
+        this._wireKeyboardAndUnload();
     },
 
     beforeUnmount() {
@@ -364,6 +361,17 @@ export default defineComponent({
 
     methods: {
         initContainer(tempToken) {
+            const core = {
+                fontDirectory: "/font/",
+                engine: "html5",
+                includeNoteBounds: true,
+            };
+            if (tempToken !== null) {
+                // Server mode: alphaTab fetches the score from a URL. In provider
+                // mode (tempToken === null) the bytes are loaded directly via
+                // api.load(), so core.file is omitted.
+                core.file = getFileURL(this.tabID, tempToken);
+            }
             this.api = new alphaTab.AlphaTabApi(this.$refs.atContainer, {
                 notation: {
                     rhythmMode: alphaTab.TabRhythmMode.ShowWithBars,
@@ -378,12 +386,7 @@ export default defineComponent({
                         scoreCopyright: false,
                     },
                 },
-                core: {
-                    file: getFileURL(this.tabID, tempToken),
-                    fontDirectory: "/font/",
-                    engine: "html5",
-                    includeNoteBounds: true,
-                },
+                core,
                 player: {
                     enablePlayer: true,
                     enableCursor: true,
@@ -493,6 +496,38 @@ export default defineComponent({
                 this.ctrl.cursor.pos.string = note.string;
                 this.refreshUi();
             });
+        },
+
+        /** Provider-mode load: read tab bytes + meta from the storage provider and feed them to alphaTab directly. */
+        async loadFromProvider() {
+            const { bytes, meta } = await this.provider.readTab(this.storagePath);
+            this.tab = { title: meta.title ?? "", artist: meta.artist ?? "", filename: this.storagePath.split("/").pop() };
+            this.viewMode = meta.viewMode ?? "tab";
+            this.noteColorOn = !!meta.noteColorOn;
+            this.initContainer(null); // FSA mode: no temp token
+            // Load bytes directly instead of core.file URL:
+            this.api.load(new Uint8Array(bytes));
+            // wire keyboard + beforeunload exactly as the server path does
+            this._wireKeyboardAndUnload();
+        },
+
+        /** Keyboard shortcut handling + unsaved-changes beforeunload guard; shared by both load paths. */
+        _wireKeyboardAndUnload() {
+            this.kb = new KeyboardController((command, arg) => this.dispatch(command, arg));
+            this.kb.isBlocked = () => this.showHelp || this.showBend || this.showBarSettings || this.showTracks || this.showLeaveModal;
+            this._onKeydown = (e) => {
+                this.kb.handleKeydown(e);
+                // Reflect the fret buffer in the status bar
+                this.status.pendingFret = this.kb.pendingFret;
+            };
+            window.addEventListener("keydown", this._onKeydown);
+
+            this._onBeforeUnload = (e) => {
+                if (this.ctrl?.dirty) {
+                    e.preventDefault();
+                }
+            };
+            window.addEventListener("beforeunload", this._onBeforeUnload);
         },
 
         // ---- command dispatch (keyboard + toolbar share this) ----
@@ -1425,6 +1460,33 @@ export default defineComponent({
 
         async save() {
             if (!this.ctrl.dirty || this.saving) {
+                return;
+            }
+
+            if (this.storagePath && this.provider) {
+                this.saving = true;
+                this.ui.saving = true;
+                try {
+                    this.restoreStaffVisibility();
+                    let bytes = this.ctrl.exportGp();
+                    let targetPath = this.storagePath;
+                    // convert-to-.gp: write a new .gp beside a non-.gp original, leave original intact
+                    if (!targetPath.toLowerCase().endsWith(".gp")) {
+                        targetPath = targetPath.replace(/\.[^.]+$/, "") + ".gp";
+                    }
+                    await this.provider.writeTab(targetPath, bytes);
+                    await this.provider.writeMeta(targetPath, { viewMode: this.viewMode, noteColorOn: this.noteColorOn, title: this.tab.title, artist: this.tab.artist });
+                    if (targetPath !== this.storagePath) {
+                        this.storagePath = targetPath;
+                    }
+                    this.ctrl.markSaved();
+                    notify({ type: "success", text: "Saved" });
+                } catch (e) {
+                    notify({ type: "error", title: "Save failed", text: e.message });
+                } finally {
+                    this.saving = false;
+                    this.ui.saving = false;
+                }
                 return;
             }
 

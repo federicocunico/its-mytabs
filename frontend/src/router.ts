@@ -58,6 +58,12 @@ const routes: RouteRecordRaw[] = [
                         meta: { hideFooter: true },
                     },
                     {
+                        name: "editPath",
+                        path: "/edit",
+                        component: TabEditor,
+                        meta: { hideFooter: true },
+                    },
+                    {
                         // Legacy player, kept reachable for reference but no longer
                         // linked from the UI.
                         name: "tabPlayer",
