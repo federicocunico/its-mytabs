@@ -1,0 +1,7 @@
+{
+    "buildCommand": "curl -fsSL https://deno.land/install.sh | sh -s -- -y && export DENO_INSTALL=\"$HOME/.deno\" && export PATH=\"$DENO_INSTALL/bin:$PATH\" && deno task build-frontend",
+    "outputDirectory": "dist",
+    "installCommand": "echo skip",
+    "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+    "framework": null
+}
