@@ -88,19 +88,68 @@ export class FsDirectoryProvider implements StorageProvider {
 
     // --- writes (implemented in Task 5) ---
 
-    async writeTab(_path: string, _bytes: Uint8Array): Promise<void> {
-        throw new Error("not implemented");
+    async writeTab(path: string, bytes: Uint8Array): Promise<void> {
+        const p = normalizeRelPath(path);
+        const fh = await this.getFileHandle(p, true);
+        const w = await fh.createWritable();
+        await w.write(bytes);
+        await w.close();
+        const index = await this.loadIndex();
+        if (!index.tabs[p]) {
+            index.tabs[p] = defaultMeta(basename(p));
+            await this.saveIndex(index);
+        }
     }
-    async createFolder(_path: string): Promise<void> {
-        throw new Error("not implemented");
+
+    async createFolder(path: string): Promise<void> {
+        await this.getDirHandle(path, true);
     }
-    async rename(_path: string, _newName: string): Promise<string> {
-        throw new Error("not implemented");
+
+    private async copyBytes(fromPath: string, toPath: string): Promise<void> {
+        const src = await this.getFileHandle(fromPath, false);
+        const bytes = new Uint8Array(await (await src.getFile()).arrayBuffer());
+        const dst = await this.getFileHandle(toPath, true);
+        const w = await dst.createWritable();
+        await w.write(bytes);
+        await w.close();
     }
-    async move(_fromPath: string, _toFolder: string): Promise<string> {
-        throw new Error("not implemented");
+
+    private async rekey(fromPath: string, toPath: string): Promise<void> {
+        const index = await this.loadIndex();
+        const from = normalizeRelPath(fromPath);
+        const to = normalizeRelPath(toPath);
+        if (index.tabs[from]) {
+            index.tabs[to] = index.tabs[from];
+            delete index.tabs[from];
+            await this.saveIndex(index);
+        }
     }
-    async remove(_path: string): Promise<void> {
-        throw new Error("not implemented");
+
+    async rename(path: string, newName: string): Promise<string> {
+        const toPath = joinPath(parentPath(path), newName);
+        await this.copyBytes(path, toPath);
+        const parent = await this.getDirHandle(parentPath(path), false);
+        await parent.removeEntry(basename(path));
+        await this.rekey(path, toPath);
+        return normalizeRelPath(toPath);
+    }
+
+    async move(fromPath: string, toFolder: string): Promise<string> {
+        const toPath = joinPath(toFolder, basename(fromPath));
+        await this.copyBytes(fromPath, toPath);
+        const parent = await this.getDirHandle(parentPath(fromPath), false);
+        await parent.removeEntry(basename(fromPath));
+        await this.rekey(fromPath, toPath);
+        return normalizeRelPath(toPath);
+    }
+
+    async remove(path: string): Promise<void> {
+        const parent = await this.getDirHandle(parentPath(path), false);
+        await parent.removeEntry(basename(path), { recursive: true });
+        const index = await this.loadIndex();
+        if (index.tabs[normalizeRelPath(path)]) {
+            delete index.tabs[normalizeRelPath(path)];
+            await this.saveIndex(index);
+        }
     }
 }

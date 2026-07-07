@@ -44,3 +44,46 @@ describe("FsDirectoryProvider (read)", () => {
         expect(meta.viewMode).toBe("score");
     });
 });
+
+describe("FsDirectoryProvider (write)", () => {
+    it("writeTab creates the file (and parents) and indexes it", async () => {
+        const p = await seed();
+        await p.writeTab("New/fresh.gp", new Uint8Array([80, 75, 1, 1]));
+        const listing = await p.listFolder("New");
+        expect(listing.tabs.map((t) => t.name)).toEqual(["fresh.gp"]);
+        const { bytes } = await p.readTab("New/fresh.gp");
+        expect([...bytes.slice(0, 2)]).toEqual([80, 75]);
+    });
+
+    it("createFolder makes a directory", async () => {
+        const p = await seed();
+        await p.createFolder("Blues");
+        const listing = await p.listFolder("");
+        expect(listing.folders.map((f) => f.name)).toContain("Blues");
+    });
+
+    it("rename moves the file and preserves its metadata", async () => {
+        const p = await seed();
+        await p.writeMeta("top.gp", { favorite: true });
+        const newPath = await p.rename("top.gp", "renamed.gp");
+        expect(newPath).toBe("renamed.gp");
+        const names = (await p.listFolder("")).tabs.map((t) => t.name);
+        expect(names).toContain("renamed.gp");
+        expect(names).not.toContain("top.gp");
+        expect((await p.readMeta("renamed.gp")).favorite).toBe(true);
+    });
+
+    it("move relocates a tab into another folder", async () => {
+        const p = await seed();
+        const newPath = await p.move("top.gp", "Rock");
+        expect(newPath).toBe("Rock/top.gp");
+        expect((await p.listFolder("Rock")).tabs.map((t) => t.name)).toContain("top.gp");
+        expect((await p.listFolder("")).tabs.map((t) => t.name)).not.toContain("top.gp");
+    });
+
+    it("remove deletes a tab", async () => {
+        const p = await seed();
+        await p.remove("top.gp");
+        expect((await p.listFolder("")).tabs.map((t) => t.name)).not.toContain("top.gp");
+    });
+});
