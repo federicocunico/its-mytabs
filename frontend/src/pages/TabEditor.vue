@@ -1344,11 +1344,15 @@ export default defineComponent({
 
             const rect = beatBounds.visualBounds;
             const overlay = this.ensureOverlay();
+            // Small horizontal padding, larger vertical so the highlight
+            // over/under-shoots the beat's bounds top and bottom.
+            const padX = 3;
+            const padY = 10;
             overlay.style.display = "block";
-            overlay.style.left = `${rect.x - 3}px`;
-            overlay.style.top = `${rect.y - 3}px`;
-            overlay.style.width = `${rect.w + 6}px`;
-            overlay.style.height = `${rect.h + 6}px`;
+            overlay.style.left = `${rect.x - padX}px`;
+            overlay.style.top = `${rect.y - padY}px`;
+            overlay.style.width = `${rect.w + padX * 2}px`;
+            overlay.style.height = `${rect.h + padY * 2}px`;
 
             // String caret. It marks where typed input lands, so it must sit on the
             // CURSOR's string line, not on some other string's note:
@@ -1363,39 +1367,42 @@ export default defineComponent({
             const staff = r.bar.staff;
             const stringCount = staff.tuning.length;
             const targetString = this.ctrl.cursor.pos.string;
+            const scale = this.api.settings?.display?.scale ?? 1;
+            // Fixed box sized for a two-digit fret so the caret covers any value
+            // (1..24 and beyond) without hugging the current note's width, and
+            // stays centered on the string line / note column.
+            const caretW = 18 * scale;
+            const caretH = 16 * scale;
             let caretY = null;
-            let caretX = rect.x;
-            let caretW = rect.w;
+            let caretCenterX = rect.x + rect.w / 2;
 
             const notes = beatBounds.notes ?? [];
             const noteOnString = r.note ? notes.find((nb) => nb.note === r.note) : null;
             const lines = this.viewMode === "tab" ? beatBounds.barBounds?.masterBarBounds?.lineAlignedBounds : null;
             if (noteOnString) {
-                caretY = noteOnString.noteHeadBounds.y + noteOnString.noteHeadBounds.h / 2;
-                caretX = noteOnString.noteHeadBounds.x - 2;
-                caretW = noteOnString.noteHeadBounds.w + 4;
+                const nh = noteOnString.noteHeadBounds;
+                caretY = nh.y + nh.h / 2;
+                caretCenterX = nh.x + nh.w / 2;
             } else if (lines) {
                 caretY = caretYOnLines(lines, stringCount, targetString);
-                caretW = Math.min(rect.w, 18);
-                const centerX = beatBounds.onNotesX || rect.x + rect.w / 2;
-                caretX = centerX - caretW / 2;
+                caretCenterX = beatBounds.onNotesX || rect.x + rect.w / 2;
             } else if (notes.length > 0) {
                 const nearest = notes.reduce((best, nb) => Math.abs((nb.note?.string ?? 0) - targetString) < Math.abs((best.note?.string ?? 0) - targetString) ? nb : best);
-                caretY = nearest.noteHeadBounds.y + nearest.noteHeadBounds.h / 2;
-                caretX = nearest.noteHeadBounds.x - 2;
-                caretW = nearest.noteHeadBounds.w + 4;
+                const nh = nearest.noteHeadBounds;
+                caretY = nh.y + nh.h / 2;
+                caretCenterX = nh.x + nh.w / 2;
             } else {
                 // Rest / no rendered notes: even interpolation (model string 1 = bottom line).
                 const fraction = (stringCount - targetString) / Math.max(1, stringCount - 1);
                 caretY = rect.y + rect.h * fraction;
-                caretW = Math.min(rect.w, 18);
+                caretCenterX = beatBounds.onNotesX || rect.x + rect.w / 2;
             }
 
             caret.style.display = "block";
-            caret.style.left = `${caretX}px`;
-            caret.style.top = `${caretY - 7}px`;
+            caret.style.left = `${caretCenterX - caretW / 2}px`;
+            caret.style.top = `${caretY - caretH / 2}px`;
             caret.style.width = `${caretW}px`;
-            caret.style.height = "14px";
+            caret.style.height = `${caretH}px`;
         },
 
         hideOverlay() {
@@ -1766,10 +1773,18 @@ export default defineComponent({
     border-radius: 6px;
     box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
     min-height: 200px;
+    // The sheet padding lives here (not on .score-sheet-inner) so the overlay
+    // elements — absolutely positioned children of .score-sheet-inner — resolve
+    // against a containing block whose origin coincides with alphaTab's render
+    // surface. Padding on the inner would shift its content box away from its
+    // padding box and draw every overlay offset from the tab lines.
+    padding: 8px 4px 16px;
     position: relative;
 
     .score-sheet-inner {
-        padding: 8px 4px 16px;
+        // Own the overlays' containing block; no padding, so its padding box
+        // (the containing-block origin) matches alphaTab's (0,0).
+        position: relative;
     }
 }
 
