@@ -23,8 +23,17 @@ const routes: RouteRecordRaw[] = [
                 component: Dashboard,
                 children: [
                     {
+                        // Local-folder library is the default entry (docker + static/Vercel).
+                        // The old server-backed library stays reachable at /server-library.
                         name: "home",
                         path: "/",
+                        alias: "/library",
+                        component: LocalLibrary,
+                        meta: { hideFooter: true },
+                    },
+                    {
+                        name: "serverHome",
+                        path: "/server-library",
                         component: Home,
                     },
                     {
@@ -76,12 +85,6 @@ const routes: RouteRecordRaw[] = [
                         name: "settings",
                         path: "/settings",
                         component: Settings,
-                    },
-                    {
-                        name: "localHome",
-                        path: "/library",
-                        component: LocalLibrary,
-                        meta: { hideFooter: true },
                     },
                 ],
             },
