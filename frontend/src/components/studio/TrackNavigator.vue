@@ -29,9 +29,9 @@ export default defineComponent({
         playhead: { type: Number, default: 0 },
         loop: { type: Object, default: null },
     },
-    emits: ["seekBar", "selectTrack"],
+    emits: ["seekBar", "selectTrack", "moveTrack"],
     data() {
-        return { LABEL_W, CELL };
+        return { LABEL_W, CELL, dragFrom: null, dragOverIndex: null };
     },
     computed: {
         gridW() {
@@ -72,6 +72,30 @@ export default defineComponent({
         sectionStartAt(bi) {
             const s = this.sectionByBar[bi];
             return s && s.start === bi ? s : null;
+        },
+        onDragStart(index, e) {
+            this.dragFrom = index;
+            e.dataTransfer.effectAllowed = "move";
+            try {
+                e.dataTransfer.setData("text/plain", String(index));
+            } catch {
+                // ignore browsers that disallow setData here
+            }
+        },
+        onDragOver(index) {
+            if (this.dragFrom !== null) {
+                this.dragOverIndex = index;
+            }
+        },
+        onDrop(index) {
+            if (this.dragFrom !== null && this.dragFrom !== index) {
+                this.$emit("moveTrack", { from: this.dragFrom, to: index });
+            }
+            this.onDragEnd();
+        },
+        onDragEnd() {
+            this.dragFrom = null;
+            this.dragOverIndex = null;
         },
     },
 });
@@ -115,10 +139,29 @@ export default defineComponent({
         >
             <div
                 class="row-label"
-                :class="{ selected: t.selected }"
+                :class="{ selected: t.selected, dragging: dragFrom === t.index, 'drag-over': dragOverIndex === t.index && dragFrom !== null && dragFrom !== t.index }"
                 :style="t.selected ? { background: '#1c222b', boxShadow: 'inset 3px 0 0 ' + t.color } : {}"
                 @click="$emit('selectTrack', t.index)"
+                @dragover.prevent="onDragOver(t.index)"
+                @drop.prevent="onDrop(t.index)"
             >
+                <span
+                    class="row-grip"
+                    draggable="true"
+                    title="Drag to reorder"
+                    @click.stop
+                    @dragstart="onDragStart(t.index, $event)"
+                    @dragend="onDragEnd"
+                >
+                    <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor">
+                        <circle cx="2" cy="3" r="1.1" />
+                        <circle cx="6" cy="3" r="1.1" />
+                        <circle cx="2" cy="7" r="1.1" />
+                        <circle cx="6" cy="7" r="1.1" />
+                        <circle cx="2" cy="11" r="1.1" />
+                        <circle cx="6" cy="11" r="1.1" />
+                    </svg>
+                </span>
                 <span class="row-idx">{{ t.index + 1 }}</span>
                 <span class="row-dot" :style="{ background: t.color }"></span>
                 <span class="row-name" :class="{ muted: t.mute }" :style="{ fontWeight: t.selected ? 600 : 500 }">{{ t.name }}</span>
@@ -257,6 +300,30 @@ export default defineComponent({
     cursor: pointer;
     border-right: 1px solid $st-border;
     background: $st-rail-bg;
+
+    &.dragging {
+        opacity: 0.4;
+    }
+    &.drag-over {
+        box-shadow: inset 0 3px 0 -1px $st-accent;
+    }
+
+    .row-grip {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: 10px;
+        margin-left: -6px;
+        color: #5c6672;
+        cursor: grab;
+
+        &:hover {
+            color: #9aa4b0;
+        }
+        &:active {
+            cursor: grabbing;
+        }
+    }
 
     .row-idx {
         font-family: $st-font-mono;

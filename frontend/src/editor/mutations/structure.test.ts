@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as alphaTab from "@coderline/alphatab";
 import { loadTex, voice0 } from "../test-utils.ts";
-import { addTrack, removeTrack, setKeySignature, setRepeat, setSection, setStaffTuning, setTempo, setTimeSignature, setTripletFeel } from "./structure.ts";
+import { addTrack, indexAfterMove, moveTrack, removeTrack, setKeySignature, setRepeat, setSection, setStaffTuning, setTempo, setTimeSignature, setTripletFeel } from "./structure.ts";
 import { normalizeScore, rebuildScore } from "../normalize.ts";
 import { EditorValidationError } from "../validation.ts";
 
@@ -126,6 +126,30 @@ describe("tracks", () => {
         expect(() => removeTrack(score, 0)).toThrow(EditorValidationError);
     });
 
+    it("reorders tracks and survives a rebuild + export", () => {
+        let { score, settings } = loadTex(TEX);
+        addTrack(score, { name: "Bass", tuning: [43, 38, 33, 28], program: 33 });
+        addTrack(score, { name: "Piano", tuning: [64, 59, 55, 50, 45, 40], program: 0 });
+        score = rebuildScore(score, settings);
+        const orig = score.tracks[0].name;
+
+        moveTrack(score, 2, 0); // Piano to the front
+        score = rebuildScore(score, settings);
+        expect(score.tracks.map((t) => t.name)).toEqual(["Piano", orig, "Bass"]);
+        // reindexed contiguously after rebuild
+        expect(score.tracks.map((t) => t.index)).toEqual([0, 1, 2]);
+
+        const bytes = new alphaTab.exporter.Gp7Exporter().export(score, settings);
+        const reloaded = alphaTab.importer.ScoreLoader.loadScoreFromBytes(bytes, settings);
+        expect(reloaded.tracks.map((t) => t.name)).toEqual(["Piano", orig, "Bass"]);
+    });
+
+    it("rejects out-of-range track moves", () => {
+        const { score } = loadTex(TEX);
+        expect(() => moveTrack(score, 0, 5)).toThrow(EditorValidationError);
+        expect(() => moveTrack(score, -1, 0)).toThrow(EditorValidationError);
+    });
+
     it("re-tunes a staff with the same string count", () => {
         const { score, settings } = loadTex(TEX);
         const staff = score.tracks[0].staves[0];
@@ -141,5 +165,32 @@ describe("tracks", () => {
         const { score } = loadTex(TEX);
         const staff = score.tracks[0].staves[0];
         expect(() => setStaffTuning(staff, [43, 38, 33, 28], 0)).toThrow(EditorValidationError);
+    });
+});
+
+describe("indexAfterMove", () => {
+    // Ground truth: actually perform the array move and read back the index.
+    function bruteForce(len: number, from: number, to: number, index: number): number {
+        const arr = Array.from({ length: len }, (_, i) => i);
+        const [x] = arr.splice(from, 1);
+        arr.splice(to, 0, x);
+        return arr.indexOf(index);
+    }
+
+    it("matches a real array move for every from/to/index in a size-5 array", () => {
+        const len = 5;
+        for (let from = 0; from < len; from++) {
+            for (let to = 0; to < len; to++) {
+                for (let index = 0; index < len; index++) {
+                    expect(indexAfterMove(index, from, to)).toBe(bruteForce(len, from, to, index));
+                }
+            }
+        }
+    });
+
+    it("returns the destination for the moved element and is a no-op when from === to", () => {
+        expect(indexAfterMove(3, 3, 0)).toBe(0);
+        expect(indexAfterMove(2, 2, 2)).toBe(2);
+        expect(indexAfterMove(0, 3, 3)).toBe(0);
     });
 });

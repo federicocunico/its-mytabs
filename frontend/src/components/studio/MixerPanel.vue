@@ -15,7 +15,10 @@ export default defineComponent({
         master: { type: Number, default: 100 },
         playing: { type: Boolean, default: false },
     },
-    emits: ["selectTrack", "toggleSolo", "toggleMute", "setVolume", "setMaster", "addTrack"],
+    emits: ["selectTrack", "toggleSolo", "toggleMute", "setVolume", "setMaster", "addTrack", "moveTrack"],
+    data() {
+        return { dragFrom: null, dragOverIndex: null };
+    },
     computed: {
         anySolo() {
             return this.tracks.some((t) => t.solo);
@@ -27,6 +30,30 @@ export default defineComponent({
         },
         rowStyle(t) {
             return t.selected ? { background: "#1c222b", border: `1px solid ${t.color}66`, boxShadow: `inset 3px 0 0 ${t.color}` } : {};
+        },
+        onDragStart(index, e) {
+            this.dragFrom = index;
+            e.dataTransfer.effectAllowed = "move";
+            try {
+                e.dataTransfer.setData("text/plain", String(index));
+            } catch {
+                // some browsers disallow setData outside a user gesture chain
+            }
+        },
+        onDragOver(index) {
+            if (this.dragFrom !== null) {
+                this.dragOverIndex = index;
+            }
+        },
+        onDrop(index) {
+            if (this.dragFrom !== null && this.dragFrom !== index) {
+                this.$emit("moveTrack", { from: this.dragFrom, to: index });
+            }
+            this.onDragEnd();
+        },
+        onDragEnd() {
+            this.dragFrom = null;
+            this.dragOverIndex = null;
         },
     },
 });
@@ -59,11 +86,30 @@ export default defineComponent({
                 v-for="t in tracks"
                 :key="t.index"
                 class="track"
-                :class="{ selected: t.selected }"
+                :class="{ selected: t.selected, dragging: dragFrom === t.index, 'drag-over': dragOverIndex === t.index && dragFrom !== null && dragFrom !== t.index }"
                 :style="rowStyle(t)"
                 @click="$emit('selectTrack', t.index)"
+                @dragover.prevent="onDragOver(t.index)"
+                @drop.prevent="onDrop(t.index)"
             >
                 <div class="track-top">
+                    <span
+                        class="track-grip"
+                        draggable="true"
+                        title="Drag to reorder"
+                        @click.stop
+                        @dragstart="onDragStart(t.index, $event)"
+                        @dragend="onDragEnd"
+                    >
+                        <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor">
+                            <circle cx="3" cy="3" r="1.3" />
+                            <circle cx="7" cy="3" r="1.3" />
+                            <circle cx="3" cy="8" r="1.3" />
+                            <circle cx="7" cy="8" r="1.3" />
+                            <circle cx="3" cy="13" r="1.3" />
+                            <circle cx="7" cy="13" r="1.3" />
+                        </svg>
+                    </span>
                     <span class="track-bar" :style="{ background: t.color }"></span>
                     <span class="track-icon" :style="{ background: t.color + '22', borderColor: t.color + '66' }">
                         <svg width="15" height="15" viewBox="0 0 24 24" :fill="t.color">
@@ -192,6 +238,32 @@ export default defineComponent({
 
     &:hover:not(.selected) {
         background: #1a2028;
+    }
+    &.dragging {
+        opacity: 0.4;
+    }
+    // insertion indicator: a line at the top of the hovered target row
+    &.drag-over {
+        box-shadow: inset 0 3px 0 -1px $st-accent;
+    }
+    &.drag-over .track-grip {
+        visibility: hidden;
+    }
+}
+
+.track-grip {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 14px;
+    color: #5c6672;
+    cursor: grab;
+
+    &:hover {
+        color: #9aa4b0;
+    }
+    &:active {
+        cursor: grabbing;
     }
 }
 

@@ -202,6 +202,38 @@ export function removeTrack(score: Score, trackIndex: number): void {
     score.tracks.splice(trackIndex, 1);
 }
 
+/** Reorder tracks: pull the track out of `from` and insert it at `to`. A structural rebuild reindexes afterwards. */
+export function moveTrack(score: Score, from: number, to: number): void {
+    const n = score.tracks.length;
+    if (from < 0 || from >= n || to < 0 || to >= n) {
+        throw new EditorValidationError(`Invalid track move ${from} -> ${to}`);
+    }
+    if (from === to) {
+        return;
+    }
+    const [track] = score.tracks.splice(from, 1);
+    score.tracks.splice(to, 0, track);
+}
+
+/**
+ * Where an index lands after moving the element at `from` to `to` (array-move
+ * semantics). Used to keep the edited-track cursor and index-keyed UI state
+ * (mute/solo/volume) attached to the same track after a reorder.
+ */
+export function indexAfterMove(index: number, from: number, to: number): number {
+    if (from === to) {
+        return index;
+    }
+    if (index === from) {
+        return to;
+    }
+    let i = index > from ? index - 1 : index; // account for the removal
+    if (i >= to) {
+        i += 1; // account for the insertion
+    }
+    return i;
+}
+
 /** Re-tune a staff. Changing the string count is only allowed while the staff has no notes. */
 export function setStaffTuning(staff: Staff, tuning: number[], capo: number): void {
     if (tuning.length !== staff.tuning.length) {

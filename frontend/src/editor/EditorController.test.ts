@@ -325,6 +325,27 @@ describe("EditorController", () => {
         expect(ctrl.cursor.trackIndex).toBe(0);
     });
 
+    it("reorders tracks, keeps the cursor on the edited track, and is undoable", () => {
+        const orig = ctrl.score.tracks[0].name;
+        ctrl.addTrackToScore({ name: "Bass", tuning: [43, 38, 33, 28], program: 33 });
+        ctrl.addTrackToScore({ name: "Piano", tuning: [64, 59, 55, 50, 45, 40], program: 0 });
+        expect(ctrl.score.tracks.map((t) => t.name)).toEqual([orig, "Bass", "Piano"]);
+
+        // Edit the Bass track (index 1) so we can prove its content follows the move.
+        ctrl.changeTrack(1);
+        ctrl.setFretAtCursor(7);
+
+        // Move Bass (1) to the front (0).
+        expect(ctrl.moveTrackFromTo(1, 0).ok).toBe(true);
+        expect(ctrl.score.tracks.map((t) => t.name)).toEqual(["Bass", orig, "Piano"]);
+        expect(ctrl.cursor.trackIndex).toBe(0); // cursor followed Bass to its new index
+        expect(ctrl.score.tracks[0].staves[0].bars[0].voices[0].beats[0].notes.length).toBe(1);
+
+        // Undo restores the original order.
+        expect(ctrl.undo().ok).toBe(true);
+        expect(ctrl.score.tracks.map((t) => t.name)).toEqual([orig, "Bass", "Piano"]);
+    });
+
     describe("track/voice switch cursor pinning", () => {
         beforeEach(() => {
             ctrl.addTrackToScore({ name: "Bass", tuning: [43, 38, 33, 28], program: 33 }); // 4-string

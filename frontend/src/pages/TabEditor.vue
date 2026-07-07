@@ -6,6 +6,7 @@ import { ActionBuffer, baseURL, checkFetch, generalError, getSetting, getTrackIn
 import { applyTrackStaffVisibility, buildDisplayResources, getFileURL, getTempToken } from "../alphatab-shared.ts";
 import { STRING_COLORS_LIGHT, trackColor } from "../styles/colors.ts";
 import { EditorController } from "../editor/EditorController.ts";
+import { indexAfterMove } from "../editor/mutations/structure.ts";
 import { KeyboardController } from "../editor/keyboard-controller.ts";
 import { KEYMAP } from "../editor/keymap.ts";
 import { downloadGp, saveScoreToServer } from "../editor/persistence.ts";
@@ -823,6 +824,36 @@ export default defineComponent({
             this.showTracks = false;
         },
 
+        /** Drag-and-drop reorder (from the mixer or the bottom navigator). */
+        moveTrack({ from, to }) {
+            if (from === to || this.playing) {
+                return;
+            }
+            const result = this.ctrl.moveTrackFromTo(from, to);
+            if (!result.ok) {
+                if (result.message) {
+                    notify({ type: "warn", text: result.message });
+                }
+                return;
+            }
+            // Keep the index-keyed per-track state attached to the same tracks.
+            const remapKeys = (obj) => {
+                const out = {};
+                for (const [k, v] of Object.entries(obj)) {
+                    out[indexAfterMove(+k, from, to)] = v;
+                }
+                return out;
+            };
+            this.muteTrackList = remapKeys(this.muteTrackList);
+            this.trackVolumes = remapKeys(this.trackVolumes);
+            if (this.soloTrackID >= 0) {
+                this.soloTrackID = indexAfterMove(this.soloTrackID, from, to);
+            }
+            // The controller's cursor already followed the moved track.
+            this.trackIndex = this.ctrl.cursor.trackIndex;
+            this.trackName = this.ctrl.score.tracks[this.trackIndex]?.name ?? "";
+        },
+
         addTrack(template) {
             const result = this.ctrl.addTrackToScore(template);
             if (!result.ok && result.message) {
@@ -1318,23 +1349,33 @@ export default defineComponent({
             overlay.style.width = `${rect.w + 6}px`;
             overlay.style.height = `${rect.h + 6}px`;
 
-            // String caret: exact note bounds if a note exists on the cursor string,
-            // otherwise interpolate evenly across the beat's height.
+            // String caret. Prefer a real note head so the caret is always exactly on
+            // a rendered note (correct Y): the note on the cursor's string if there is
+            // one, otherwise the beat's note nearest the cursor string. Only when the
+            // beat has no rendered notes at all (a rest) do we fall back to interpolating
+            // across the beat — and there is then no visible note to mismatch with.
+            // (The old code interpolated over the beat's stem-inclusive visualBounds even
+            // when notes were present, dropping the caret onto an empty lower line.)
             const caret = this.ensureCaret();
             const staff = r.bar.staff;
             const stringCount = staff.tuning.length;
+            const targetString = this.ctrl.cursor.pos.string;
             let caretY = null;
             let caretX = rect.x;
             let caretW = rect.w;
 
-            const noteBounds = r.note && beatBounds.notes ? beatBounds.notes.find((nb) => nb.note === r.note) : null;
+            const notes = beatBounds.notes ?? [];
+            let noteBounds = r.note ? notes.find((nb) => nb.note === r.note) : null;
+            if (!noteBounds && notes.length > 0) {
+                noteBounds = notes.reduce((best, nb) => Math.abs((nb.note?.string ?? 0) - targetString) < Math.abs((best.note?.string ?? 0) - targetString) ? nb : best);
+            }
             if (noteBounds) {
                 caretY = noteBounds.noteHeadBounds.y + noteBounds.noteHeadBounds.h / 2;
                 caretX = noteBounds.noteHeadBounds.x - 2;
                 caretW = noteBounds.noteHeadBounds.w + 4;
             } else {
-                // Even interpolation: string N of stringCount, model 1 = bottom line
-                const fraction = (stringCount - this.ctrl.cursor.pos.string) / Math.max(1, stringCount - 1);
+                // Rest / no rendered notes: even interpolation (model string 1 = bottom line).
+                const fraction = (stringCount - targetString) / Math.max(1, stringCount - 1);
                 caretY = rect.y + rect.h * fraction;
                 caretW = Math.min(rect.w, 18);
             }
@@ -1615,6 +1656,7 @@ export default defineComponent({
                 @set-volume="setTrackVolume"
                 @set-master="setMasterVolume"
                 @add-track="openTrackManager"
+                @move-track="moveTrack"
             />
         </template>
 
@@ -1631,6 +1673,7 @@ export default defineComponent({
                     :loop="navLoop"
                     @seek-bar="seekToBar"
                     @select-track="switchTrack"
+                    @move-track="moveTrack"
                 />
                 <EditorStatusBar :info="status" class="editor-status-strip" />
             </div>

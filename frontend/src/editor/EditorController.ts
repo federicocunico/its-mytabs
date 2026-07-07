@@ -15,7 +15,20 @@ import { removeNoteOnString, setNoteFret, toggleTie } from "./mutations/note.ts"
 import { applyBeatData, type BeatData, deleteBeat, insertBeatAt, makeRest, serializeBeat, setBeatDots, setBeatDuration } from "./mutations/beat.ts";
 import { appendBar, deleteBar, insertBar } from "./mutations/bar.ts";
 import { type BeatEffect, type NoteEffect, setBeatEffect, setNoteEffect } from "./mutations/effects.ts";
-import { addTrack, removeTrack, setKeySignature, setRepeat, setSection, setStaffTuning, setTempo, setTimeSignature, setTripletFeel, type TrackTemplate } from "./mutations/structure.ts";
+import {
+    addTrack,
+    indexAfterMove,
+    moveTrack,
+    removeTrack,
+    setKeySignature,
+    setRepeat,
+    setSection,
+    setStaffTuning,
+    setTempo,
+    setTimeSignature,
+    setTripletFeel,
+    type TrackTemplate,
+} from "./mutations/structure.ts";
 
 type Score = alphaTab.model.Score;
 type Settings = alphaTab.Settings;
@@ -390,6 +403,15 @@ export class EditorController {
             this.changeTrack(0);
         }
         return result;
+    }
+
+    /** Reorder tracks (drag-and-drop); the edited-track cursor follows the moved track. */
+    moveTrackFromTo(from: number, to: number): CommandResult {
+        const newTrackIndex = indexAfterMove(this.cursor.trackIndex, from, to);
+        return this.transact(() => {
+            moveTrack(this.score, from, to);
+            this.cursor.trackIndex = newTrackIndex;
+        }, { structural: true, skipNormalize: true });
     }
 
     setTuningForCurrentTrack(tuning: number[], capo: number): CommandResult {
