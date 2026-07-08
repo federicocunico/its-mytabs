@@ -11,9 +11,8 @@
 
 Open source, web based, self hostable guitar/bass tab player and editor with a Guitar-Pro-style studio interface, similar to Songsterr.
 
-> **Naming.** The redesigned product is called **TabCraft Studio** — this is the
-> name and icon shown throughout the UI. The project keeps its original name
-> **It's MyTabs** as the repository name and historical reference.
+> **Naming.** The redesigned product is called **TabCraft Studio** — this is the name and icon shown throughout the UI. The project keeps its original name **It's MyTabs** as the repository name and
+> historical reference.
 >
 > This is a fork of [louislam/its-mytabs](https://github.com/louislam/its-mytabs). It runs entirely from this repository's source — build the Docker image or run it with Deno as shown below (there is
 > no prebuilt image or release download to pull).
