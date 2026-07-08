@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button/index.ts";
 import { Input } from "@/components/ui/input/index.ts";
 import { Label } from "@/components/ui/label/index.ts";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog/index.ts";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select/index.ts";
 
 interface TuningPreset {
     id: string;
@@ -141,6 +140,13 @@ function retune() {
         emit("retune", { tuning: [...preset.tuning], capo: Number(capo.value) || 0 });
     }
 }
+
+// Shared class for the native <select> triggers — mirrors the Input styling so
+// the dropdowns read as part of the same kit. A native select (rather than the
+// reka Select) avoids a portal that teleports outside DialogContent, which made
+// the Dialog auto-dismiss the moment the dropdown opened.
+const SELECT_CLASS =
+    "h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 </script>
 
 <template>
@@ -227,14 +233,9 @@ function retune() {
                 <Label>Add track</Label>
                 <div class="flex flex-wrap items-end gap-2">
                     <div class="min-w-40 flex-1">
-                        <Select v-model="newPreset">
-                            <SelectTrigger class="w-full">
-                                <SelectValue placeholder="Instrument" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem v-for="p in TUNING_PRESETS" :key="p.id" :value="p.id">{{ p.label }}</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <select v-model="newPreset" :class="SELECT_CLASS">
+                            <option v-for="p in TUNING_PRESETS" :key="p.id" :value="p.id">{{ p.label }}</option>
+                        </select>
                     </div>
                     <div class="min-w-32 flex-1">
                         <Input v-model="newName" placeholder="Track name" @input="onNameInput" @keydown.enter.prevent="add" />
@@ -252,14 +253,9 @@ function retune() {
                 <p class="text-xs text-muted-foreground">Changing the string count is only possible while the track has no notes.</p>
                 <div class="flex flex-wrap items-end gap-2">
                     <div class="min-w-40 flex-1">
-                        <Select v-model="retunePreset">
-                            <SelectTrigger class="w-full">
-                                <SelectValue placeholder="Tuning" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem v-for="p in TUNING_PRESETS" :key="p.id" :value="p.id">{{ p.label }}</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <select v-model="retunePreset" :class="SELECT_CLASS">
+                            <option v-for="p in TUNING_PRESETS" :key="p.id" :value="p.id">{{ p.label }}</option>
+                        </select>
                     </div>
                     <div class="w-24">
                         <Label class="mb-1 block text-xs text-muted-foreground">Capo</Label>
