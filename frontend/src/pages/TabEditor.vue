@@ -128,6 +128,10 @@ export default defineComponent({
             soloTrackID: -1,
             muteTrackList: {},
             trackVolumes: {},
+            // Colour slot per track, keyed by the track's primaryChannel (a stable
+            // id that survives the JSON rebuild + reorder), so a track keeps its
+            // colour when moved. Value is a palette slot; trackColor() wraps it.
+            trackColorMap: {},
             playbackRange: null,
             studio: {
                 presence: [],
@@ -233,7 +237,7 @@ export default defineComponent({
                 index: i,
                 name: t.name || getTrackInstrumentName(t),
                 instrument: getTrackInstrumentName(t),
-                color: trackColor(i),
+                color: trackColor(this.trackColorMap[t.playbackInfo.primaryChannel] ?? i),
                 solo: this.soloTrackID === i,
                 mute: !!this.muteTrackList[i],
                 volume: this.trackVolumes[i] ?? 100,
@@ -443,6 +447,8 @@ export default defineComponent({
                 }
                 this.ctrl.attach(score, this.api.settings, this.trackIndex);
                 this.trackName = score.tracks[this.trackIndex].name;
+                this.trackColorMap = {}; // fresh colour assignment for the new score
+                this.syncTrackColors();
 
                 if (score.masterBars.length > 0 && score.masterBars[0].tempoAutomations.length > 0) {
                     score.masterBars[0].tempoAutomations[0].isVisible = true;
@@ -825,7 +831,8 @@ export default defineComponent({
             this.ctrl.changeTrack(index);
             this.trackIndex = index;
             this.trackName = this.ctrl.score.tracks[index].name;
-            this.showTracks = false;
+            // Keep the Track Manager open when switching from it (the list
+            // highlight follows the active track); the user closes it with Done.
         },
 
         /** Drag-and-drop reorder (from the mixer or the bottom navigator). */
@@ -1000,10 +1007,39 @@ export default defineComponent({
                 this.status.fillCapacity = fill.capacity;
             }
 
+            this.syncTrackColors();
             this.refreshTrackPanel();
             this.rebuildNavigatorData();
             this.refreshTransportPosition();
             this.updateOverlay();
+        },
+
+        /**
+         * Assign a colour slot to any track that doesn't have one yet, keyed by
+         * primaryChannel so the colour stays with the track across reorders and
+         * the JSON rebuild. New tracks get the next free slot (colours stay
+         * distinct until the palette wraps).
+         */
+        syncTrackColors() {
+            if (!this.ctrl?.score) {
+                return;
+            }
+            const map = { ...this.trackColorMap };
+            let next = 0;
+            for (const slot of Object.values(map)) {
+                next = Math.max(next, slot + 1);
+            }
+            let changed = false;
+            for (const t of this.ctrl.score.tracks) {
+                const key = t.playbackInfo.primaryChannel;
+                if (map[key] === undefined) {
+                    map[key] = next++;
+                    changed = true;
+                }
+            }
+            if (changed) {
+                this.trackColorMap = map;
+            }
         },
 
         /** Recompute the bottom panel's plain data (the live score is not reactive). */
