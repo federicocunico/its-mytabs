@@ -244,7 +244,10 @@ export default defineComponent({
         },
 
         navBarCount() {
-            return this.ctrl?.score?.masterBars.length ?? 0;
+            // Reads status.barCount (kept fresh in refreshUi() on every edit),
+            // not ctrl.score directly — ctrl is a plain, non-reactive instance
+            // field, so a computed reading it never invalidates after first use.
+            return this.status.barCount;
         },
 
         navLoop() {
