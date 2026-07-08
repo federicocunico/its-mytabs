@@ -257,9 +257,15 @@ export async function fixMissingTab(config: ConfigJSON): Promise<ConfigJSON> {
 
 // Replace Tab
 export async function replaceTab(tab: TabInfo, tabFileData: Uint8Array, ext: string, originalFilename: string) {
-    // Rename old file to filename.ext.timestamp
+    // Rename old file to filename.ext.timestamp. Guard against collisions when
+    // two replaces land in the same millisecond (fast CI / rapid edits) — a bare
+    // Date.now() name would overwrite the previous backup and lose it.
     const oldFilePath = getTabFilePath(tab);
-    const renamedOldFilePath = oldFilePath + "." + Date.now().toString();
+    let renamedOldFilePath = oldFilePath + "." + Date.now().toString();
+    let n = 0;
+    while (await fs.exists(renamedOldFilePath)) {
+        renamedOldFilePath = oldFilePath + "." + Date.now().toString() + "-" + (++n).toString();
+    }
     await Deno.rename(oldFilePath, renamedOldFilePath);
 
     // Write new file

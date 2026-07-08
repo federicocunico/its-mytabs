@@ -1,8 +1,10 @@
 name: Deploy to Vercel
 
-# Production deploy on every push to master. The build runs on the CI runner
-# (vercel build executes the buildCommand from vercel.json, which installs
-# Deno and runs `deno task setup`), then only the prebuilt output is uploaded.
+# Production deploy on every push to master. We build the frontend on the CI
+# runner with Deno (the same `deno task build-frontend` used locally), assemble
+# a Vercel Build Output API v3 directory from dist/, and upload only that
+# prebuilt output. This avoids `vercel build`, whose remote/emulated build path
+# runs `npm run build` and chokes on the `jsr:` imports in vite.config.ts.
 #
 # Required repository secrets (until they exist, the job logs a warning and
 # skips instead of failing):
@@ -40,18 +42,31 @@ jobs:
             - uses: actions/checkout@v4
               if: steps.secrets.outputs.configured == 'true'
 
+            - name: Set up Deno
+              if: steps.secrets.outputs.configured == 'true'
+              uses: denoland/setup-deno@v2
+              with:
+                  deno-version: v2.x
+
+            - name: Install frontend deps
+              if: steps.secrets.outputs.configured == 'true'
+              run: deno task install-frontend-deps
+
+            - name: Build frontend
+              if: steps.secrets.outputs.configured == 'true'
+              run: deno task build-frontend
+
+            - name: Assemble Vercel prebuilt output
+              if: steps.secrets.outputs.configured == 'true'
+              run: |
+                  mkdir -p .vercel/output/static
+                  cp -r dist/. .vercel/output/static/
+                  echo '{"version":3,"routes":[{"handle":"filesystem"},{"src":"/.*","dest":"/index.html"}]}' > .vercel/output/config.json
+
             - name: Install Vercel CLI
               if: steps.secrets.outputs.configured == 'true'
               run: npm install -g vercel@latest
 
-            - name: Pull Vercel environment
-              if: steps.secrets.outputs.configured == 'true'
-              run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-
-            - name: Build
-              if: steps.secrets.outputs.configured == 'true'
-              run: vercel build --prod --token="$VERCEL_TOKEN"
-
-            - name: Deploy
+            - name: Deploy prebuilt output
               if: steps.secrets.outputs.configured == 'true'
               run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
