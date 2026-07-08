@@ -1,6 +1,6 @@
 <script>
 import { defineComponent } from "vue";
-import { BDropdown, BDropdownItem } from "bootstrap-vue-next";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu/index.ts";
 
 /**
  * Studio top bar. Presentational: every action is emitted as a `command`
@@ -8,7 +8,7 @@ import { BDropdown, BDropdownItem } from "bootstrap-vue-next";
  * old EditorToolbar and the player's <h1>/<h2> header.
  */
 export default defineComponent({
-    components: { BDropdown, BDropdownItem },
+    components: { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger },
     props: {
         title: { type: String, default: "Untitled" },
         artist: { type: String, default: "" },
@@ -135,37 +135,45 @@ export default defineComponent({
             </div>
 
             <button class="tb-save" :disabled="state.saving || !state.dirty" title="Save" @click="command('save')">
-            <span v-if="state.saving" class="spinner-border spinner-border-sm" role="status"></span>
+            <span v-if="state.saving" class="tb-spin" role="status"></span>
             <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><path d="M17 21v-8H7v8M7 3v5h8" /></svg>
             Save
             <span v-if="state.dirty" class="tb-dirty" title="Unsaved changes">●</span>
         </button>
 
-            <BDropdown size="sm" variant="secondary" no-caret toggle-class="tb-more-toggle" end>
-                <template #button-content>
+            <DropdownMenu>
+                <DropdownMenuTrigger as-child>
+                    <button type="button" class="tb-more-toggle" title="More">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="12" cy="5" r="1.6" />
+                            <circle cx="12" cy="12" r="1.6" />
+                            <circle cx="12" cy="19" r="1.6" />
+                        </svg>
+                    </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem @select="command('trackManager')">Tracks…</DropdownMenuItem>
+                    <DropdownMenuItem @select="command('download')">Download .gp (Ctrl+Shift+S)</DropdownMenuItem>
+                    <DropdownMenuItem @select="command('help')">Keyboard shortcuts (?)</DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </template>
+
+        <DropdownMenu v-if="mode === 'player' && showDetails">
+            <DropdownMenuTrigger as-child>
+                <button type="button" class="tb-more-toggle" title="More">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                         <circle cx="12" cy="5" r="1.6" />
                         <circle cx="12" cy="12" r="1.6" />
                         <circle cx="12" cy="19" r="1.6" />
                     </svg>
-                </template>
-                <BDropdownItem @click="command('trackManager')">Tracks…</BDropdownItem>
-                <BDropdownItem @click="command('download')">Download .gp (Ctrl+Shift+S)</BDropdownItem>
-                <BDropdownItem @click="command('help')">Keyboard shortcuts (?)</BDropdownItem>
-            </BDropdown>
-        </template>
-
-        <BDropdown v-if="mode === 'player' && showDetails" size="sm" variant="secondary" no-caret toggle-class="tb-more-toggle" end>
-            <template #button-content>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <circle cx="12" cy="5" r="1.6" />
-                    <circle cx="12" cy="12" r="1.6" />
-                    <circle cx="12" cy="19" r="1.6" />
-                </svg>
-            </template>
-            <BDropdownItem @click="command('editDetails')">Tab details…</BDropdownItem>
-            <BDropdownItem @click="command('editAudio')">Youtube &amp; audio files…</BDropdownItem>
-        </BDropdown>
+                </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuItem @select="command('editDetails')">Tab details…</DropdownMenuItem>
+                <DropdownMenuItem @select="command('editAudio')">Youtube &amp; audio files…</DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
     </div>
 </template>
 
@@ -371,7 +379,7 @@ export default defineComponent({
     }
 }
 
-:deep(.tb-more-toggle) {
+.tb-more-toggle {
     width: 34px;
     height: 34px;
     display: grid;
@@ -381,5 +389,25 @@ export default defineComponent({
     background: $st-panel-2;
     color: #aab4bf;
     padding: 0;
+    cursor: pointer;
+
+    &:hover {
+        background: #232b34;
+    }
+}
+
+.tb-spin {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: tb-spin 0.6s linear infinite;
+}
+
+@keyframes tb-spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 </style>

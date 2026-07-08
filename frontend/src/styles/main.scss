@@ -1,14 +1,12 @@
 @import "vars.scss";
-@import "bootstrap/scss/bootstrap";
-@import "bootstrap-vue-next/dist/bootstrap-vue-next.css";
 
-// Cursor color
+// alphaTab cursor / selection / highlight colours (rendered inside the score
+// surface; not tied to any UI framework).
 .at-cursor-beat {
     background: rgba(20, 148, 27, 0.6);
     margin-left: 1px;
 }
 
-// Current Bar color
 .at-cursor-bar {
     &.enable {
         background: rgba(0, 255, 47, 0.05);
@@ -25,37 +23,9 @@
     stroke: #0078ff;
 }
 
-@include color-mode(dark) {
-    .form-control {
-        background-color: $dark1;
-
-        &:focus {
-            background-color: darken($dark1, 10%);
-            border-color: $dark1;
-            box-shadow: 0 0 0 0.2rem rgba($dark1, 0.25);
-        }
-    }
-}
-
-@include color-mode(light) {}
-
 a {
     text-decoration: none;
     transition: color 0.2s;
-}
-
-.form-select {
-    background-color: $dark1;
-}
-
-.form-floating {
-    > label {
-        padding-left: 1.7rem;
-    }
-
-    > .form-control {
-        padding-left: 1.7rem;
-    }
 }
 
 .my-container {

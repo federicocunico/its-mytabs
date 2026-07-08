@@ -1,8 +1,11 @@
-<script>
-import { defineComponent } from "vue";
-import { BModal } from "bootstrap-vue-next";
+<script setup lang="ts">
+import { ref, watch } from "vue";
+import { Button } from "@/components/ui/button/index.ts";
+import { Input } from "@/components/ui/input/index.ts";
+import { Label } from "@/components/ui/label/index.ts";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog/index.ts";
 
-const KEY_NAMES = {
+const KEY_NAMES: Record<string, string> = {
     "-7": "Cb",
     "-6": "Gb",
     "-5": "Db",
@@ -20,121 +23,108 @@ const KEY_NAMES = {
     "7": "C#",
 };
 
-export default defineComponent({
-    components: { BModal },
-    props: {
-        modelValue: {
-            type: Boolean,
-            default: false,
-        },
-        /** Current values of the bar at the cursor. */
-        initial: {
-            type: Object,
-            required: true,
-        },
-    },
-    emits: ["update:modelValue", "apply"],
-    data() {
-        return {
-            form: {},
-            KEY_NAMES,
-            denominators: [1, 2, 4, 8, 16, 32],
-            feels: [
-                { value: 0, label: "None" },
-                { value: 1, label: "Triplet 16th" },
-                { value: 2, label: "Triplet 8th" },
-                { value: 3, label: "Dotted 16th" },
-                { value: 4, label: "Dotted 8th" },
-                { value: 5, label: "Scottish 16th" },
-                { value: 6, label: "Scottish 8th" },
-            ],
-        };
-    },
-    watch: {
-        modelValue(open) {
-            if (open) {
-                // Copy the current bar state into the form on every open
-                this.form = { ...this.initial };
-            }
-        },
-    },
-    methods: {
-        apply() {
-            this.$emit("apply", { ...this.form, initial: this.initial });
-            this.$emit("update:modelValue", false);
-        },
-    },
+const DENOMINATORS = [1, 2, 4, 8, 16, 32];
+const FEELS = [
+    { value: 0, label: "None" },
+    { value: 1, label: "Triplet 16th" },
+    { value: 2, label: "Triplet 8th" },
+    { value: 3, label: "Dotted 16th" },
+    { value: 4, label: "Dotted 8th" },
+    { value: 5, label: "Scottish 16th" },
+    { value: 6, label: "Scottish 8th" },
+];
+
+const SELECT_CLASS =
+    "h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+const props = defineProps<{ initial: Record<string, unknown> }>();
+const open = defineModel<boolean>("open", { default: false });
+const emit = defineEmits<{ apply: [form: Record<string, unknown>] }>();
+
+const form = ref<Record<string, unknown>>({});
+
+watch(open, (v) => {
+    if (v) {
+        form.value = { ...props.initial };
+    }
 });
+
+function apply() {
+    emit("apply", { ...form.value, initial: props.initial });
+    open.value = false;
+}
 </script>
 
 <template>
-    <BModal
-        :model-value="modelValue"
-        title="Bar settings"
-        @update:model-value='$emit("update:modelValue", $event)'
-        @ok="apply"
-    >
-        <div class="row g-2 mb-3 align-items-end">
-            <div class="col-3">
-                <label class="form-label">Time sig.</label>
-                <input type="number" class="form-control form-control-sm" min="1" max="32" v-model.number="form.tsNumerator" />
+    <Dialog v-model:open="open">
+        <DialogContent class="sm:max-w-lg">
+            <DialogHeader>
+                <DialogTitle>Bar settings</DialogTitle>
+            </DialogHeader>
+
+            <div class="grid grid-cols-3 items-end gap-3">
+                <div class="grid gap-1.5">
+                    <Label>Time sig.</Label>
+                    <Input type="number" min="1" max="32" v-model.number="form.tsNumerator" />
+                </div>
+                <div class="grid gap-1.5">
+                    <Label>/</Label>
+                    <select :class="SELECT_CLASS" v-model.number="form.tsDenominator">
+                        <option v-for="d in DENOMINATORS" :key="d" :value="d">{{ d }}</option>
+                    </select>
+                </div>
+                <label class="flex items-center gap-2 pb-2 text-sm">
+                    <input type="checkbox" v-model="form.tsFollowing" class="accent-[var(--primary)]" />
+                    Apply to following
+                </label>
             </div>
-            <div class="col-3">
-                <label class="form-label">/</label>
-                <select class="form-select form-select-sm" v-model.number="form.tsDenominator">
-                    <option v-for="d in denominators" :key="d" :value="d">{{ d }}</option>
-                </select>
-            </div>
-            <div class="col-6">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="tsFollowing" v-model="form.tsFollowing" />
-                    <label class="form-check-label" for="tsFollowing">Apply to following bars</label>
+
+            <div class="grid grid-cols-3 items-end gap-3">
+                <div class="grid gap-1.5">
+                    <Label>Tempo (BPM)</Label>
+                    <Input type="number" min="10" max="500" placeholder="unchanged" v-model.number="form.tempo" />
+                </div>
+                <div class="grid gap-1.5">
+                    <Label>Key</Label>
+                    <select :class="SELECT_CLASS" v-model.number="form.key">
+                        <option v-for="(name, value) in KEY_NAMES" :key="value" :value="parseInt(value)">{{ name }}</option>
+                    </select>
+                </div>
+                <div class="grid gap-1.5">
+                    <Label>Mode</Label>
+                    <select :class="SELECT_CLASS" v-model.number="form.keyType">
+                        <option :value="0">Major</option>
+                        <option :value="1">Minor</option>
+                    </select>
                 </div>
             </div>
-        </div>
 
-        <div class="row g-2 mb-3 align-items-end">
-            <div class="col-4">
-                <label class="form-label">Tempo (BPM)</label>
-                <input type="number" class="form-control form-control-sm" min="10" max="500" v-model.number="form.tempo" placeholder="unchanged" />
-            </div>
-            <div class="col-4">
-                <label class="form-label">Key</label>
-                <select class="form-select form-select-sm" v-model.number="form.key">
-                    <option v-for="(name, value) in KEY_NAMES" :key="value" :value="parseInt(value)">{{ name }}</option>
-                </select>
-            </div>
-            <div class="col-4">
-                <label class="form-label">Mode</label>
-                <select class="form-select form-select-sm" v-model.number="form.keyType">
-                    <option :value="0">Major</option>
-                    <option :value="1">Minor</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="row g-2 mb-3 align-items-end">
-            <div class="col-4">
-                <div class="form-check mt-4">
-                    <input class="form-check-input" type="checkbox" id="repeatStart" v-model="form.repeatStart" />
-                    <label class="form-check-label" for="repeatStart">Repeat start</label>
+            <div class="grid grid-cols-3 items-end gap-3">
+                <label class="flex items-center gap-2 pb-2 text-sm">
+                    <input type="checkbox" v-model="form.repeatStart" class="accent-[var(--primary)]" />
+                    Repeat start
+                </label>
+                <div class="grid gap-1.5">
+                    <Label>Repeat count (end)</Label>
+                    <Input type="number" min="0" max="100" v-model.number="form.repeatCount" />
+                </div>
+                <div class="grid gap-1.5">
+                    <Label>Triplet feel</Label>
+                    <select :class="SELECT_CLASS" v-model.number="form.tripletFeel">
+                        <option v-for="f in FEELS" :key="f.value" :value="f.value">{{ f.label }}</option>
+                    </select>
                 </div>
             </div>
-            <div class="col-4">
-                <label class="form-label">Repeat count (end)</label>
-                <input type="number" class="form-control form-control-sm" min="0" max="100" v-model.number="form.repeatCount" />
-            </div>
-            <div class="col-4">
-                <label class="form-label">Triplet feel</label>
-                <select class="form-select form-select-sm" v-model.number="form.tripletFeel">
-                    <option v-for="f in feels" :key="f.value" :value="f.value">{{ f.label }}</option>
-                </select>
-            </div>
-        </div>
 
-        <div class="mb-2">
-            <label class="form-label">Section name</label>
-            <input type="text" class="form-control form-control-sm" v-model="form.section" placeholder="e.g. Chorus (empty = none)" />
-        </div>
-    </BModal>
+            <div class="grid gap-1.5">
+                <Label>Section name</Label>
+                <Input type="text" placeholder="e.g. Chorus (empty = none)" v-model="form.section" />
+            </div>
+
+            <DialogFooter>
+                <Button variant="outline" @click="open = false">Cancel</Button>
+                <Button @click="apply">Apply</Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
 </template>

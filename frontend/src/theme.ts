@@ -30,9 +30,7 @@ function systemDark(): boolean {
 }
 
 function apply(dark: boolean): void {
-    const el = document.documentElement;
-    el.classList.toggle("dark", dark);
-    el.setAttribute("data-bs-theme", dark ? "dark" : "light");
+    document.documentElement.classList.toggle("dark", dark);
 }
 
 export function effectiveDark(): boolean {

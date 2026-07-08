@@ -1,7 +1,8 @@
 <script>
 import { defineComponent } from "vue";
 import { notify } from "@kyvg/vue3-notification";
-import { BModal } from "bootstrap-vue-next";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog/index.ts";
+import { Button } from "@/components/ui/button/index.ts";
 import { ActionBuffer, baseURL, checkFetch, generalError, getSetting, getTrackInstrumentName } from "../app.js";
 import { applyTrackStaffVisibility, buildDisplayResources, getFileURL, getTempToken } from "../alphatab-shared.ts";
 import { STRING_COLORS_LIGHT, trackColor } from "../styles/colors.ts";
@@ -88,7 +89,13 @@ export default defineComponent({
         BendDialog,
         BarSettingsDialog,
         TrackManagerDialog,
-        BModal,
+        Dialog,
+        DialogContent,
+        DialogDescription,
+        DialogFooter,
+        DialogHeader,
+        DialogTitle,
+        Button,
     },
 
     /** @type {alphaTab.AlphaTabApi} */
@@ -1781,20 +1788,22 @@ export default defineComponent({
         </template>
     </StudioShell>
 
-    <BModal v-model="showLeaveModal" title="Unsaved changes">
-        <p>You have unsaved changes. What do you want to do?</p>
-        <template #footer>
-            <button class="btn btn-success" :disabled="saving" @click="leaveWithSave">
-                    <span v-if="saving" class="spinner-border spinner-border-sm me-1" role="status"></span>
-                    Save &amp; leave
-                </button>
-            <button class="btn btn-danger" :disabled="saving" @click="leaveWithDiscard">Discard changes</button>
-            <button class="btn btn-secondary" :disabled="saving" @click="showLeaveModal = false">Cancel</button>
-        </template>
-    </BModal>
+    <Dialog v-model:open="showLeaveModal">
+        <DialogContent class="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Unsaved changes</DialogTitle>
+                <DialogDescription>You have unsaved changes. What do you want to do?</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+                <Button variant="outline" :disabled="saving" @click="showLeaveModal = false">Cancel</Button>
+                <Button variant="destructive" :disabled="saving" @click="leaveWithDiscard">Discard changes</Button>
+                <Button :disabled="saving" @click="leaveWithSave">Save &amp; leave</Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
 
-    <BendDialog v-model="showBend" @apply="applyBendPreset" />
-    <BarSettingsDialog v-model="showBarSettings" :initial="barSettingsInitial" @apply="applyBarSettings" />
+    <BendDialog v-model:open="showBend" @apply="applyBendPreset" />
+    <BarSettingsDialog v-model:open="showBarSettings" :initial="barSettingsInitial" @apply="applyBarSettings" />
     <TrackManagerDialog
         v-model:open="showTracks"
         :tracks="trackList"
@@ -1806,23 +1815,30 @@ export default defineComponent({
         @retune="retune"
     />
 
-    <BModal v-model="showHelp" title="Keyboard shortcuts" size="lg" ok-only>
-        <div class="shortcuts">
-            <div v-for="(bindings, group) in keymapGroups" :key="group" class="mb-3">
-                <h6>{{ group }}</h6>
-                <table class="table table-sm table-dark">
-                    <tbody>
-                        <tr v-for="b in bindings" :key="b.keyLabel + b.command">
-                            <td class="key-label"><kbd>{{ b.keyLabel }}</kbd></td>
-                            <td>{{ b.description }}</td>
-                        </tr>
-                    </tbody>
-                </table>
+    <Dialog v-model:open="showHelp">
+        <DialogContent class="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+                <DialogTitle>Keyboard shortcuts</DialogTitle>
+            </DialogHeader>
+            <div class="grid gap-4">
+                <div v-for="(bindings, group) in keymapGroups" :key="group">
+                    <h6 class="mb-1 text-sm font-semibold">{{ group }}</h6>
+                    <table class="w-full text-sm">
+                        <tbody>
+                            <tr v-for="b in bindings" :key="b.keyLabel + b.command">
+                                <td class="w-40 py-0.5 align-top">
+                                    <kbd class="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs">{{ b.keyLabel }}</kbd>
+                                </td>
+                                <td class="py-0.5 text-muted-foreground">{{ b.description }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p
+                    class="text-sm text-muted-foreground">Type digits (0–9) or numpad digits (NumLock on) to enter frets — two digits within a moment combine (1, 2 → 12). Use ↑/↓ to move between strings on the same beat.</p>
             </div>
-            <p
-                class="text-muted">Type digits (0–9) or numpad digits (NumLock on) to enter frets — two digits within a moment combine (1, 2 → 12). Use ↑/↓ to move between strings on the same beat.</p>
-        </div>
-    </BModal>
+        </DialogContent>
+    </Dialog>
 </template>
 
 <style lang="scss">

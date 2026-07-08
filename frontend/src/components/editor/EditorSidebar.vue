@@ -219,14 +219,23 @@ export default defineComponent({
         gap: 5px;
 
         .btn {
+            display: grid;
+            place-items: center;
+            padding: 0 6px;
+            cursor: pointer;
             min-width: 32px;
             height: 30px;
-            border-radius: 7px !important;
+            border-radius: 7px;
             border: 1px solid $st-border-2;
             background: $st-panel-2;
             color: #b3bcc6;
             font-size: 12px;
             font-weight: 600;
+
+            &:disabled {
+                opacity: 0.45;
+                cursor: default;
+            }
 
             &.active {
                 background: #3d4657;

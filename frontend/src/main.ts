@@ -3,23 +3,19 @@ import { createApp } from "vue";
 import App from "./App.vue";
 import { FontAwesomeIcon } from "./icon.ts";
 
-// @ts-ignore No idea
-import { createBootstrap } from "bootstrap-vue-next";
-
 // Dependencies
 import { router } from "./router.ts";
 import { i18n } from "./i18n.ts";
 import { initStorage } from "./storage/session.ts";
 
-// CSS — main.scss (Bootstrap) first, Tailwind after so its layered
-// utilities are declared later in the sheet order.
+// CSS — app-wide styles first, Tailwind after so its layered utilities are
+// declared later in the sheet order.
 import "./styles/main.scss";
 import "./styles/tailwind.css";
 
 const app = createApp(App);
 app.use(router);
 app.use(i18n);
-app.use(createBootstrap());
 app.component("FontAwesomeIcon", FontAwesomeIcon);
 
 // Restore any previously-picked storage folder before the UI renders, so the
