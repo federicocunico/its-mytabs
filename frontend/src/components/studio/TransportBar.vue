@@ -161,17 +161,17 @@ export default defineComponent({
     flex: none;
 
     &:hover {
-        background: #232b34;
+        background: $st-hover;
     }
     &.active.accent-indigo {
-        background: rgba(91, 110, 245, 0.13);
+        background: $st-accent-soft;
         border-color: $st-accent;
         color: $st-accent;
     }
     &.active.accent-teal {
         background: rgba(20, 184, 166, 0.13);
-        border-color: #14b8a6;
-        color: #14b8a6;
+        border-color: $st-accent-beat;
+        color: $st-accent-beat;
     }
     &.active.accent-amber {
         background: rgba(244, 165, 43, 0.13);
@@ -195,7 +195,7 @@ export default defineComponent({
     font-family: $st-font-mono;
     font-size: 12.5px;
     font-weight: 600;
-    color: #e6ebf1;
+    color: $st-text-strong;
     margin-right: 6px;
 
     .t-time-sep {
@@ -244,7 +244,7 @@ export default defineComponent({
         width: 110px;
         height: 4px;
         border-radius: 3px;
-        background: #333c47;
+        background: $st-slider-track;
         outline: none;
         accent-color: $st-accent;
 
@@ -253,7 +253,7 @@ export default defineComponent({
             width: 13px;
             height: 13px;
             border-radius: 50%;
-            background: #e8edf3;
+            background: $st-slider-thumb;
             cursor: pointer;
         }
     }
@@ -261,7 +261,7 @@ export default defineComponent({
         font-family: $st-font-mono;
         font-size: 12.5px;
         font-weight: 600;
-        color: #e6ebf1;
+        color: $st-text-strong;
         width: 40px;
         text-align: right;
     }

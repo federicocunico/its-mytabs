@@ -87,6 +87,41 @@
     --radius: 8px;
     /* Six-string card motif */
     --strings: #e2e5ea;
+
+    /* --- studio (light) — single source of truth for the editor shell --- */
+    --st-app-bg: #f5f6f8; /* = --background */
+    --st-panel-bg: #ffffff; /* = --card */
+    --st-rail-bg: #fbfcfd;
+    --st-panel-2: #eef1f5; /* raised controls = --secondary/muted */
+    --st-border: #e6e9ee; /* = --border */
+    --st-border-2: #d7dbe2; /* = --input */
+    --st-score-around: #e7e9ee; /* padding around the white sheet */
+    --st-score-shadow: 0 6px 22px rgba(30, 40, 60, 0.14);
+    --st-text: #3a444f; /* body */
+    --st-text-strong: #141a20;
+    --st-text-muted: #697585; /* = --muted-foreground */
+    --st-text-faint: #96a0ab;
+    --st-track: #f6f7fa; /* mixer/track row */
+    --st-hover: #e9edf2;
+    --st-selected: #e4e8ef;
+    --st-active: #d7dbe2; /* non-accent active control (duration) */
+    --st-slider-track: #d5dae2;
+    --st-slider-thumb: #ffffff;
+    --st-slider-ring: #c2c8d0;
+    --st-nav-bg: #ffffff;
+    --st-nav-playhead: #2a3550;
+    --st-cell-current: rgba(0, 0, 0, 0.05);
+    --st-accent: #4d5fe3; /* = --primary */
+    --st-accent-soft: rgba(77, 95, 227, 0.12);
+    /* functional colours — identical in both themes */
+    --st-play-green: #1f9d55;
+    --st-playhead: #f4a52b;
+    --st-mute-red: #d23b34;
+    --st-solo-amber: #f4a52b;
+    --st-fx-note: #4d5fe3;
+    --st-fx-beatfx: #e0900f; /* amber darkened for legibility on light */
+    --st-fx-beat: #14b8a6;
+    --st-fx-bar: #a855c9;
 }
 
 /* Dark theme — aligned with the editor's $st-* studio tokens. */
@@ -111,6 +146,40 @@
     --input: #2b333d;
     --ring: #5b6ef5;
     --strings: #242b33;
+
+    /* --- studio (dark) — the editor's original $st-* values --- */
+    --st-app-bg: #0d1015;
+    --st-panel-bg: #14181e;
+    --st-rail-bg: #12161b;
+    --st-panel-2: #1b2027;
+    --st-border: #242b33;
+    --st-border-2: #2b333d;
+    --st-score-around: #191d23;
+    --st-score-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+    --st-text: #c7ced7;
+    --st-text-strong: #eef2f6;
+    --st-text-muted: #7c8794;
+    --st-text-faint: #5f6b78;
+    --st-track: #171c22;
+    --st-hover: #232b34;
+    --st-selected: #1c222b;
+    --st-active: #3d4657;
+    --st-slider-track: #333c47;
+    --st-slider-thumb: #e8edf3;
+    --st-slider-ring: rgba(0, 0, 0, 0.4);
+    --st-nav-bg: #0f1319;
+    --st-nav-playhead: #ffffff;
+    --st-cell-current: rgba(255, 255, 255, 0.05);
+    --st-accent: #5b6ef5;
+    --st-accent-soft: rgba(91, 110, 245, 0.15);
+    --st-play-green: #1f9d55;
+    --st-playhead: #f4a52b;
+    --st-mute-red: #d23b34;
+    --st-solo-amber: #f4a52b;
+    --st-fx-note: #5b6ef5;
+    --st-fx-beatfx: #f4a52b;
+    --st-fx-beat: #14b8a6;
+    --st-fx-bar: #a855c9;
 }
 
 @theme inline {

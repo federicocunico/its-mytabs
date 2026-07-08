@@ -24,7 +24,7 @@ export default defineComponent({
             groups: [
                 {
                     name: "Note Effects",
-                    accent: "#5b6ef5",
+                    accent: "var(--st-fx-note)",
                     items: [
                         { command: "toggleHammer", label: "H", description: "Hammer-on / pull-off", active: "hammer" },
                         { command: "togglePalmMute", label: "PM", description: "Palm mute", active: "palmMute" },
@@ -43,7 +43,7 @@ export default defineComponent({
                 },
                 {
                     name: "Beat Effects",
-                    accent: "#f4a52b",
+                    accent: "var(--st-fx-beatfx)",
                     items: [
                         { command: "toggleTap", label: "Tap", description: "Tapping", active: "tap" },
                         { command: "cycleTremolo", label: "Trem", description: "Tremolo picking", active: "tremolo" },
@@ -52,7 +52,7 @@ export default defineComponent({
                 },
                 {
                     name: "Beat",
-                    accent: "#14b8a6",
+                    accent: "var(--st-fx-beat)",
                     items: [
                         { command: "toggleRest", label: "Rest", description: "Turn the beat into a rest", uiActive: "isRest" },
                         { command: "toggleTie", label: "Tie", description: "Tie to the previous note", uiActive: "tie" },
@@ -62,7 +62,7 @@ export default defineComponent({
                 },
                 {
                     name: "Bar",
-                    accent: "#a855c9",
+                    accent: "var(--st-fx-bar)",
                     items: [
                         { command: "insertBar", label: "+Bar", description: "Insert a bar before the current one" },
                         { command: "appendBar", label: "Append", description: "Append a bar at the end" },
@@ -94,7 +94,7 @@ export default defineComponent({
             return false;
         },
         chipStyle(item, accent) {
-            return this.isActive(item) ? { background: accent, borderColor: accent, color: "#fff", boxShadow: `0 2px 8px ${accent}55` } : {};
+            return this.isActive(item) ? { background: accent, borderColor: accent, color: "#fff", boxShadow: `0 2px 8px color-mix(in srgb, ${accent} 34%, transparent)` } : {};
         },
     },
 });
@@ -143,7 +143,7 @@ export default defineComponent({
         margin-bottom: 14px;
 
         &:not(:first-child) {
-            border-top: 1px solid #20272f;
+            border-top: 1px solid $st-border;
             padding-top: 12px;
         }
     }
@@ -186,12 +186,12 @@ export default defineComponent({
         border-radius: 7px;
         border: 1px solid $st-border-2;
         background: $st-panel-2;
-        color: #b3bcc6;
+        color: $st-text;
         cursor: pointer;
         transition: all 0.12s;
 
         &:hover:not(:disabled):not(.active) {
-            background: #232b34;
+            background: $st-hover;
         }
         &:disabled {
             opacity: 0.45;
@@ -201,8 +201,8 @@ export default defineComponent({
 
     .kbd {
         font-size: 10px;
-        color: #93a8ba;
-        border: 1px solid #3a4652;
+        color: $st-text-muted;
+        border: 1px solid $st-border-2;
         border-radius: 3px;
         padding: 0 3px;
     }
@@ -228,7 +228,7 @@ export default defineComponent({
             border-radius: 7px;
             border: 1px solid $st-border-2;
             background: $st-panel-2;
-            color: #b3bcc6;
+            color: $st-text;
             font-size: 12px;
             font-weight: 600;
 
@@ -238,9 +238,9 @@ export default defineComponent({
             }
 
             &.active {
-                background: #3d4657;
-                border-color: #3d4657;
-                color: #fff;
+                background: $st-active;
+                border-color: $st-active;
+                color: $st-text-strong;
             }
         }
     }

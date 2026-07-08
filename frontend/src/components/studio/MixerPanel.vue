@@ -29,7 +29,7 @@ export default defineComponent({
             return !t.mute && (!this.anySolo || t.solo);
         },
         rowStyle(t) {
-            return t.selected ? { background: "#1c222b", border: `1px solid ${t.color}66`, boxShadow: `inset 3px 0 0 ${t.color}` } : {};
+            return t.selected ? { background: "var(--st-selected)", border: `1px solid ${t.color}66`, boxShadow: `inset 3px 0 0 ${t.color}` } : {};
         },
         onDragStart(index, e) {
             this.dragFrom = index;
@@ -123,9 +123,9 @@ export default defineComponent({
                         <div class="track-inst">{{ t.instrument }}</div>
                     </div>
                     <div class="vu" :class="{ on: playing && audible(t) }">
-                        <span :style="{ background: audible(t) ? t.color : '#3a434e', animationDuration: '0.42s' }"></span>
-                        <span :style="{ background: audible(t) ? t.color : '#3a434e', animationDuration: '0.33s', animationDelay: '0.08s' }"></span>
-                        <span :style="{ background: audible(t) ? t.color : '#3a434e', animationDuration: '0.5s', animationDelay: '0.04s' }"></span>
+                        <span :style="{ background: audible(t) ? t.color : 'var(--st-text-faint)', animationDuration: '0.42s' }"></span>
+                        <span :style="{ background: audible(t) ? t.color : 'var(--st-text-faint)', animationDuration: '0.33s', animationDelay: '0.08s' }"></span>
+                        <span :style="{ background: audible(t) ? t.color : 'var(--st-text-faint)', animationDuration: '0.5s', animationDelay: '0.04s' }"></span>
                     </div>
                 </div>
                 <div class="track-ctl">
@@ -190,14 +190,14 @@ export default defineComponent({
     .mixer-count {
         font-family: $st-font-mono;
         font-size: 11px;
-        color: #6f7a86;
+        color: $st-text-muted;
     }
 }
 
 .master {
     margin: 0 12px 6px;
     padding: 10px 12px;
-    background: #171c22;
+    background: $st-track;
     border: 1px solid $st-border;
     border-radius: 10px;
 
@@ -210,12 +210,12 @@ export default defineComponent({
     .master-label {
         font-size: 12px;
         font-weight: 600;
-        color: #cfd6de;
+        color: $st-text-strong;
     }
     .master-val {
         font-family: $st-font-mono;
         font-size: 11px;
-        color: #8b95a1;
+        color: $st-text-muted;
     }
 }
 
@@ -231,13 +231,13 @@ export default defineComponent({
 .track {
     padding: 11px 12px;
     border-radius: 11px;
-    background: #171c22;
+    background: $st-track;
     border: 1px solid $st-border;
     cursor: pointer;
     transition: background 0.12s;
 
     &:hover:not(.selected) {
-        background: #1a2028;
+        background: $st-hover;
     }
     &.dragging {
         opacity: 0.4;
@@ -256,11 +256,11 @@ export default defineComponent({
     display: grid;
     place-items: center;
     width: 14px;
-    color: #5c6672;
+    color: $st-text-faint;
     cursor: grab;
 
     &:hover {
-        color: #9aa4b0;
+        color: $st-text;
     }
     &:active {
         cursor: grabbing;
@@ -299,14 +299,14 @@ export default defineComponent({
     .track-name {
         font-size: 13px;
         font-weight: 600;
-        color: #e6ebf1;
+        color: $st-text-strong;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
     .track-inst {
         font-size: 11px;
-        color: #717c88;
+        color: $st-text-muted;
     }
 }
 
@@ -346,9 +346,9 @@ export default defineComponent({
     font-size: 11px;
     font-weight: 700;
     cursor: pointer;
-    background: #20262e;
-    border: 1px solid #2f3843;
-    color: #8b95a1;
+    background: $st-panel-2;
+    border: 1px solid $st-border-2;
+    color: $st-text-muted;
 
     &.solo.active {
         background: $st-solo-amber;
@@ -367,7 +367,7 @@ export default defineComponent({
     appearance: none;
     height: 4px;
     border-radius: 3px;
-    background: #333c47;
+    background: $st-slider-track;
     outline: none;
     flex: 1;
 
@@ -376,20 +376,20 @@ export default defineComponent({
         width: 13px;
         height: 13px;
         border-radius: 50%;
-        background: #e8edf3;
+        background: $st-slider-thumb;
         cursor: pointer;
-        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 0 0 1px $st-slider-ring;
     }
 }
 .slider-master {
     width: 100%;
-    accent-color: #e8edf3;
+    accent-color: $st-accent;
 }
 
 .vol-val {
     font-family: $st-font-mono;
     font-size: 10.5px;
-    color: #8b95a1;
+    color: $st-text-muted;
     width: 24px;
     text-align: right;
 }
@@ -400,7 +400,7 @@ export default defineComponent({
     justify-content: center;
     gap: 7px;
     padding: 10px;
-    border: 1px dashed #303842;
+    border: 1px dashed $st-border-2;
     border-radius: 10px;
     background: transparent;
     color: $st-text-muted;
@@ -410,8 +410,8 @@ export default defineComponent({
     margin-top: 2px;
 
     &:hover {
-        background: #171c22;
-        color: #a9b3bd;
+        background: $st-track;
+        color: $st-text;
     }
 }
 

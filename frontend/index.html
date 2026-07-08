@@ -14,7 +14,7 @@
         <title>TabCraft Studio</title>
         <script>
         // Pre-paint theme: mirror src/theme.ts so the first frame has the right
-        // colors (no light/dark flash). Studio routes re-force dark after mount.
+        // colors (no light/dark flash) — on every route, editor included.
         (function () {
             try {
                 var t = localStorage.getItem("theme");

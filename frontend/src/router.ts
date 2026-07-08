@@ -3,7 +3,7 @@ import { createRouter, createWebHistory, RouteRecordRaw } from "vue-router";
 import AppShell from "./layouts/AppShell.vue";
 import Library from "./pages/Library.vue";
 import Settings from "./pages/Settings.vue";
-import { applyTheme, forceDark } from "./theme.ts";
+import { applyTheme } from "./theme.ts";
 
 const TabEditor = () => import("./pages/TabEditor.vue");
 
@@ -32,7 +32,8 @@ const routes: RouteRecordRaw[] = [
         ],
     },
     {
-        // The editor is a standalone full-viewport studio (always dark).
+        // The editor is a standalone full-viewport studio; it follows the
+        // global light/dark theme like every other route.
         name: "editPath",
         path: "/edit",
         component: TabEditor,
@@ -53,9 +54,5 @@ export const router = createRouter({
     routes,
 });
 
-// Studio routes (editor) are always dark; everything else follows the user's
-// theme preference.
-router.afterEach((to) => {
-    if (to.meta.studio) forceDark();
-    else applyTheme();
-});
+// Every route (editor included) follows the user's saved theme preference.
+router.afterEach(() => applyTheme());

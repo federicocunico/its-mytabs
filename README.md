@@ -1,18 +1,24 @@
 <div align="center" width="100%">
-    <img src="./frontend/public/icon.png" width="128" alt="It's MyTabs" />
+    <img src="./frontend/public/icon.svg" width="128" alt="TabCraft Studio" />
 </div>
 
-# It's MyTabs
+# TabCraft Studio
+
+<sub>formerly / repository name: **It's MyTabs**</sub>
 
 <a target="_blank" href="https://github.com/federicocunico/its-mytabs"><img src="https://img.shields.io/github/stars/federicocunico/its-mytabs?style=flat" /></a>
 <a target="_blank" href="https://github.com/federicocunico/its-mytabs"><img src="https://img.shields.io/github/last-commit/federicocunico/its-mytabs" /></a>
 
 Open source, web based, self hostable guitar/bass tab player and editor with a Guitar-Pro-style studio interface, similar to Songsterr.
 
+> **Naming.** The redesigned product is called **TabCraft Studio** — this is the
+> name and icon shown throughout the UI. The project keeps its original name
+> **It's MyTabs** as the repository name and historical reference.
+>
 > This is a fork of [louislam/its-mytabs](https://github.com/louislam/its-mytabs). It runs entirely from this repository's source — build the Docker image or run it with Deno as shown below (there is
 > no prebuilt image or release download to pull).
 
-<img width="800" alt="MyTabs Studio — editor" src="./docs/screenshots/studio-editor.png" />
+<img width="800" alt="TabCraft Studio — editor" src="./docs/screenshots/studio-editor.png" />
 
 ## Features
 
@@ -20,7 +26,7 @@ Open source, web based, self hostable guitar/bass tab player and editor with a G
 - Supports guitar tabs and bass tabs
 - **Studio editor** — a Guitar-Pro-style app shell; opening a tab lands straight in the editor:
   - Top bar with song info, key / tempo / time-signature badges and a **Tab / Score / Score + Tab** view switch, a **color-notes** toggle and a **keyboard-shortcuts** button
-  - The notation always renders on a **white sheet** inside the dark chrome
+  - The notation always renders on a **white sheet**, in a shell that follows your **light / dark** theme preference
   - **Docked mixer** (right rail): per-track solo / mute / volume, master volume, track colors; the selected track is highlighted
   - **Multi-track bar navigator** (bottom): one row per track, colored blocks where each track plays, section lane, playhead — click any bar to jump there
   - Docked transport: play/pause, to start/end, loop, metronome, count-in, speed slider, time readout
@@ -83,11 +89,11 @@ Go to `http://localhost:47777` to access the web UI. For a hot-reloading dev env
 
 **Player** — white score sheet, sections, docked mixer, multi-track bar navigator and transport:
 
-<img width="800" alt="MyTabs Studio — player" src="./docs/screenshots/studio-player.png" />
+<img width="800" alt="TabCraft Studio — player" src="./docs/screenshots/studio-player.png" />
 
 **Editor** — tool palette with keyboard-shortcut hints, voice switch, live validation and the same mixer/navigator:
 
-<img width="800" alt="MyTabs Studio — editor" src="./docs/screenshots/studio-editor.png" />
+<img width="800" alt="TabCraft Studio — editor" src="./docs/screenshots/studio-editor.png" />
 
 ## Environment Variables
 

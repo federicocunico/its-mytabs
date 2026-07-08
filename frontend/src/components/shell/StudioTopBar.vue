@@ -1,6 +1,9 @@
 <script>
 import { defineComponent } from "vue";
+import { Monitor, Moon, Sun } from "@lucide/vue";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu/index.ts";
+import BrandLockup from "@/components/BrandLockup.vue";
+import { setTheme, themePreference } from "@/theme.ts";
 
 /**
  * Studio top bar. Presentational: every action is emitted as a `command`
@@ -8,7 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
  * old EditorToolbar and the player's <h1>/<h2> header.
  */
 export default defineComponent({
-    components: { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger },
+    components: { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, BrandLockup, Sun, Monitor, Moon },
     props: {
         title: { type: String, default: "Untitled" },
         artist: { type: String, default: "" },
@@ -35,11 +38,24 @@ export default defineComponent({
                 { value: "score", label: "Score", title: "Standard notation only" },
                 { value: "score-tab", label: "Score + Tab", title: "Standard notation and tablature" },
             ],
+            themeChoices: [
+                { value: "light", icon: "Sun", label: "Light theme" },
+                { value: "system", icon: "Monitor", label: "Match system theme" },
+                { value: "dark", icon: "Moon", label: "Dark theme" },
+            ],
         };
+    },
+    computed: {
+        themePref() {
+            return themePreference.value;
+        },
     },
     methods: {
         command(name, arg) {
             this.$emit("command", name, arg);
+        },
+        pickTheme(pref) {
+            setTheme(pref);
         },
     },
 });
@@ -53,16 +69,7 @@ export default defineComponent({
             </svg>
         </button>
 
-        <div class="tb-mark">
-            <span class="tb-logo">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff">
-                    <path d="M9 18V5l12-2v13" />
-                    <circle cx="6" cy="18" r="3" fill="#fff" />
-                    <circle cx="18" cy="16" r="3" fill="#fff" />
-                </svg>
-            </span>
-            <span class="tb-name">TabCraft<span class="tb-name-2">&#8202;Studio</span></span>
-        </div>
+        <BrandLockup :size="26" />
 
         <div class="tb-sep"></div>
 
@@ -78,6 +85,21 @@ export default defineComponent({
         </div>
 
         <div class="tb-spacer"></div>
+
+        <div class="tb-theme" role="group" aria-label="Theme">
+            <button
+                v-for="choice in themeChoices"
+                :key="choice.value"
+                type="button"
+                class="tb-theme-btn"
+                :class="{ active: themePref === choice.value }"
+                :title="choice.label"
+                :aria-label="choice.label"
+                @click="pickTheme(choice.value)"
+            >
+                <component :is="choice.icon" :size="15" />
+            </button>
+        </div>
 
         <template v-if="mode === 'editor'">
             <div class="tb-view" role="group" aria-label="View mode">
@@ -197,11 +219,11 @@ export default defineComponent({
     border: 1px solid $st-border-2;
     border-radius: 8px;
     background: $st-panel-2;
-    color: #aab4bf;
+    color: $st-text-muted;
     cursor: pointer;
 
     &:hover:not(:disabled) {
-        background: #232b34;
+        background: $st-hover;
     }
     &:disabled {
         opacity: 0.4;
@@ -209,30 +231,33 @@ export default defineComponent({
     }
 }
 
-.tb-mark {
+.tb-theme {
     display: flex;
-    align-items: center;
-    gap: 9px;
+    gap: 2px;
+    padding: 3px;
+    background: $st-panel-2;
+    border: 1px solid $st-border-2;
+    border-radius: 8px;
     flex: none;
+}
 
-    .tb-logo {
-        width: 26px;
-        height: 26px;
-        border-radius: 7px;
-        background: linear-gradient(150deg, #5b6ef5, #8b5bf5);
-        display: grid;
-        place-items: center;
-        box-shadow: 0 2px 8px rgba(91, 110, 245, 0.4);
+.tb-theme-btn {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: $st-text-muted;
+    cursor: pointer;
+
+    &.active {
+        background: $st-accent-soft;
+        color: $st-accent;
     }
-    .tb-name {
-        font-weight: 700;
-        letter-spacing: 0.2px;
-        font-size: 14px;
-        color: #eef2f6;
-    }
-    .tb-name-2 {
-        color: $st-text-muted;
-        font-weight: 500;
+    &:hover:not(.active) {
+        color: $st-text;
     }
 }
 
@@ -252,7 +277,7 @@ export default defineComponent({
     .tb-title {
         font-weight: 600;
         font-size: 14px;
-        color: #eef2f6;
+        color: $st-text-strong;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -275,7 +300,7 @@ export default defineComponent({
         font-family: $st-font-mono;
         font-size: 11px;
         font-weight: 600;
-        color: #9fb0c0;
+        color: $st-text;
         background: $st-panel-2;
         border: 1px solid $st-border-2;
         border-radius: 6px;
@@ -311,7 +336,7 @@ export default defineComponent({
     white-space: nowrap;
 
     &.active {
-        background: rgba(91, 110, 245, 0.15);
+        background: $st-accent-soft;
         color: $st-accent;
     }
     &:hover:not(.active) {
@@ -335,11 +360,11 @@ export default defineComponent({
     flex: none;
 
     &:hover {
-        background: #232b34;
+        background: $st-hover;
         color: $st-text;
     }
     &.active {
-        background: rgba(91, 110, 245, 0.15);
+        background: $st-accent-soft;
         border-color: $st-accent;
         color: $st-accent;
     }
@@ -387,12 +412,12 @@ export default defineComponent({
     border: 1px solid $st-border-2;
     border-radius: 8px;
     background: $st-panel-2;
-    color: #aab4bf;
+    color: $st-text-muted;
     padding: 0;
     cursor: pointer;
 
     &:hover {
-        background: #232b34;
+        background: $st-hover;
     }
 }
 

@@ -54,7 +54,7 @@ export default defineComponent({
 .editor-status-bar {
     padding: 6px 15px;
     font-size: 13px;
-    color: #b0c5d5;
+    color: var(--st-text-muted);
 
     .item {
         margin-right: 20px;

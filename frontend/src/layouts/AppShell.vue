@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { useRoute } from "vue-router";
 import { Menu } from "@lucide/vue";
 import AppSidebar from "@/components/library/AppSidebar.vue";
+import BrandLockup from "@/components/BrandLockup.vue";
 
 const route = useRoute();
 const sidebarOpen = ref(false);
@@ -36,7 +37,7 @@ const sidebarOpen = ref(false);
                 >
                     <Menu class="size-5" />
                 </button>
-                <span class="text-sm font-semibold">TabCraft Studio</span>
+                <BrandLockup :size="26" />
             </header>
 
             <main class="flex min-w-0 flex-1 flex-col">

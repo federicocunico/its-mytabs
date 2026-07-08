@@ -1,9 +1,9 @@
 import { ref } from "vue";
 
 /**
- * App-wide light/dark theme. The editor (studio routes) is always dark; every
- * other page follows the stored preference, defaulting to the OS scheme.
- * index.html applies the same logic pre-paint to avoid a flash.
+ * App-wide light/dark theme. Every page — the editor/studio included — follows
+ * the stored preference, defaulting to the OS scheme. index.html applies the
+ * same logic pre-paint to avoid a flash.
  */
 export type ThemePreference = "light" | "dark" | "system";
 
@@ -21,10 +21,6 @@ function readStored(): ThemePreference {
 /** Reactive preference for UI controls (sidebar toggle, settings page). */
 export const themePreference = ref<ThemePreference>(readStored());
 
-// Studio routes force dark regardless of preference; while forced, preference
-// changes are stored but not applied.
-let forced = false;
-
 function systemDark(): boolean {
     return globalThis.matchMedia?.("(prefers-color-scheme: dark)").matches ?? true;
 }
@@ -37,16 +33,9 @@ export function effectiveDark(): boolean {
     return themePreference.value === "dark" || (themePreference.value === "system" && systemDark());
 }
 
-/** Apply the stored preference (used on non-studio routes). */
+/** Apply the stored preference. */
 export function applyTheme(): void {
-    forced = false;
     apply(effectiveDark());
-}
-
-/** Force dark mode (used on studio/editor routes). */
-export function forceDark(): void {
-    forced = true;
-    apply(true);
 }
 
 export function setTheme(pref: ThemePreference): void {
@@ -57,9 +46,9 @@ export function setTheme(pref: ThemePreference): void {
     } catch {
         // Ignore storage failures (private mode etc.); theme still applies.
     }
-    if (!forced) apply(effectiveDark());
+    apply(effectiveDark());
 }
 
 globalThis.matchMedia?.("(prefers-color-scheme: dark)").addEventListener("change", () => {
-    if (!forced && themePreference.value === "system") apply(systemDark());
+    if (themePreference.value === "system") apply(systemDark());
 });

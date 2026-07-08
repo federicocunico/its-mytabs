@@ -1848,9 +1848,12 @@ export default defineComponent({
 .score-sheet {
     width: 100%;
     max-width: 900px;
+    // The sheet is white by definition in every theme; the border + theme-aware
+    // shadow keep it visually detached from the (light or dark) padding around it.
     background: #fff;
+    border: 1px solid $st-border;
     border-radius: 6px;
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+    box-shadow: $st-score-shadow;
     min-height: 200px;
     // The sheet padding lives here (not on .score-sheet-inner) so the overlay
     // elements — absolutely positioned children of .score-sheet-inner — resolve
@@ -1892,7 +1895,7 @@ export default defineComponent({
         cursor: pointer;
 
         &.active {
-            background: rgba(91, 110, 245, 0.15);
+            background: $st-accent-soft;
             border-color: $st-accent;
             color: $st-accent;
         }

@@ -8,6 +8,7 @@ import { setTheme, type ThemePreference, themePreference } from "@/theme.ts";
 import { generalError } from "@/app.ts";
 import { Badge } from "@/components/ui/badge/index.ts";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip/index.ts";
+import BrandLockup from "@/components/BrandLockup.vue";
 
 defineEmits<{ navigate: [] }>();
 
@@ -50,11 +51,8 @@ const themeChoices: { value: ThemePreference; icon: typeof Sun; label: string }[
 <template>
     <aside class="flex flex-col border-r border-border bg-card">
         <!-- Brand -->
-        <RouterLink to="/" class="flex items-center gap-3 px-5 pb-4 pt-5" @click="$emit('navigate')">
-            <img src="/icon.svg" alt="" class="size-9 shrink-0" />
-            <span class="text-[15px] font-semibold leading-tight text-foreground">
-                TabCraft<span class="font-normal text-muted-foreground"> Studio</span>
-            </span>
+        <RouterLink to="/" class="flex items-center px-5 pb-4 pt-5" @click="$emit('navigate')">
+            <BrandLockup :size="34" />
         </RouterLink>
 
         <!-- Navigation -->

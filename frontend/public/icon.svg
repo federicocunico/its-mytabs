@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-    <rect width="64" height="64" rx="14" fill="#5b6ef5" />
-    <g stroke="#ffffff" stroke-opacity=".4" stroke-width="2">
-        <line x1="9" y1="13" x2="55" y2="13" />
-        <line x1="9" y1="20.6" x2="55" y2="20.6" />
-        <line x1="9" y1="28.2" x2="55" y2="28.2" />
-        <line x1="9" y1="35.8" x2="55" y2="35.8" />
-        <line x1="9" y1="43.4" x2="55" y2="43.4" />
-        <line x1="9" y1="51" x2="55" y2="51" />
+    <rect width="64" height="64" rx="15" fill="#5b6ef5" />
+    <g stroke="#ffffff" stroke-opacity=".42" stroke-width="1.7" stroke-linecap="round">
+        <line x1="12" y1="14" x2="52" y2="14" />
+        <line x1="12" y1="21" x2="52" y2="21" />
+        <line x1="12" y1="28" x2="52" y2="28" />
+        <line x1="12" y1="35" x2="52" y2="35" />
+        <line x1="12" y1="42" x2="52" y2="42" />
+        <line x1="12" y1="49" x2="52" y2="49" />
     </g>
-    <path d="M32 17c8.5 0 14.5 4.2 14.5 10.4C46.5 36 37 44.6 32 47c-5-2.4-14.5-11-14.5-19.6C17.5 21.2 23.5 17 32 17z" fill="#ffffff" />
+    <path d="M20 26 Q20 17 32 17 Q44 17 44 26 Q44 38 32 49 Q20 38 20 26 Z" fill="#ffffff" />
 </svg>

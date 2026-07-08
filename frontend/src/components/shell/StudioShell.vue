@@ -282,7 +282,7 @@ export default defineComponent({
     border: 1px solid $st-border-2;
     border-radius: 7px;
     background: $st-panel-2;
-    color: #8b95a1;
+    color: $st-text-muted;
     cursor: pointer;
 
     &--left {
@@ -292,7 +292,7 @@ export default defineComponent({
         right: 12px;
     }
     &:hover {
-        background: #232b34;
+        background: $st-hover;
     }
 }
 
@@ -308,11 +308,11 @@ export default defineComponent({
     border: 1px solid $st-border-2;
     border-radius: 8px;
     background: $st-panel-2;
-    color: #aab4bf;
+    color: $st-text-muted;
     cursor: pointer;
 
     &:hover {
-        background: #232b34;
+        background: $st-hover;
     }
 }
 

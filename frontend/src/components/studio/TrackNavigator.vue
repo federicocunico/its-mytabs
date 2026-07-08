@@ -140,7 +140,7 @@ export default defineComponent({
             <div
                 class="row-label"
                 :class="{ selected: t.selected, dragging: dragFrom === t.index, 'drag-over': dragOverIndex === t.index && dragFrom !== null && dragFrom !== t.index }"
-                :style="t.selected ? { background: '#1c222b', boxShadow: 'inset 3px 0 0 ' + t.color } : {}"
+                :style="t.selected ? { background: 'var(--st-selected)', boxShadow: 'inset 3px 0 0 ' + t.color } : {}"
                 @click="$emit('selectTrack', t.index)"
                 @dragover.prevent="onDragOver(t.index)"
                 @drop.prevent="onDrop(t.index)"
@@ -201,7 +201,7 @@ export default defineComponent({
     position: relative;
     height: 100%;
     overflow: auto;
-    background: #0f1319;
+    background: $st-nav-bg;
     font-family: $st-font-ui;
 }
 
@@ -226,7 +226,7 @@ export default defineComponent({
     z-index: 3;
     height: 22px;
     background: $st-panel-bg;
-    border-bottom: 1px solid #232a32;
+    border-bottom: 1px solid $st-border;
 
     .corner-ruler {
         z-index: 4;
@@ -243,7 +243,7 @@ export default defineComponent({
     .ruler-cell {
         flex: none;
         position: relative;
-        border-left: 1px solid #232a32;
+        border-left: 1px solid $st-border;
     }
     .ruler-num {
         position: absolute;
@@ -251,7 +251,7 @@ export default defineComponent({
         top: 5px;
         font-family: $st-font-mono;
         font-size: 9.5px;
-        color: #6f7a86;
+        color: $st-text-muted;
         font-weight: 600;
     }
 }
@@ -266,7 +266,7 @@ export default defineComponent({
     }
     .sec-cell {
         flex: none;
-        border-left: 1px solid #232a32;
+        border-left: 1px solid $st-border;
         display: flex;
         align-items: center;
         overflow: visible;
@@ -284,7 +284,7 @@ export default defineComponent({
 .nav-row {
     display: flex;
     height: 30px;
-    border-bottom: 1px solid #1a1f26;
+    border-bottom: 1px solid $st-border;
 }
 
 .row-label {
@@ -314,11 +314,11 @@ export default defineComponent({
         place-items: center;
         width: 10px;
         margin-left: -6px;
-        color: #5c6672;
+        color: $st-text-faint;
         cursor: grab;
 
         &:hover {
-            color: #9aa4b0;
+            color: $st-text;
         }
         &:active {
             cursor: grabbing;
@@ -328,7 +328,7 @@ export default defineComponent({
     .row-idx {
         font-family: $st-font-mono;
         font-size: 10px;
-        color: #6f7a86;
+        color: $st-text-muted;
         width: 12px;
         flex: none;
     }
@@ -341,7 +341,7 @@ export default defineComponent({
     .row-name {
         flex: 1;
         font-size: 12.5px;
-        color: #cfd6de;
+        color: $st-text-strong;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -367,7 +367,7 @@ export default defineComponent({
 
 .cell {
     flex: none;
-    border-left: 1px solid #1a1f26;
+    border-left: 1px solid $st-border;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -375,7 +375,7 @@ export default defineComponent({
     padding: 3px;
 
     &.current {
-        background: rgba(255, 255, 255, 0.05);
+        background: $st-cell-current;
     }
     .block {
         width: 100%;
@@ -388,7 +388,7 @@ export default defineComponent({
     position: absolute;
     top: 22px;
     bottom: 0;
-    background: rgba(91, 110, 245, 0.14);
+    background: $st-accent-soft;
     border-left: 2px solid $st-accent;
     border-right: 2px solid $st-accent;
     z-index: 1;
@@ -400,8 +400,8 @@ export default defineComponent({
     top: 22px;
     bottom: 0;
     width: 2px;
-    background: #fff;
-    box-shadow: 0 0 6px rgba(255, 255, 255, 0.7);
+    background: $st-nav-playhead;
+    box-shadow: 0 0 6px var(--st-accent-soft);
     z-index: 2;
     pointer-events: none;
     transition: left 0.1s linear;
@@ -412,7 +412,7 @@ export default defineComponent({
         left: -4px;
         width: 10px;
         height: 6px;
-        background: #fff;
+        background: $st-nav-playhead;
         clip-path: polygon(0 0, 100% 0, 50% 100%);
     }
 }
