@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as alphaTab from "@coderline/alphatab";
 import { loadTex, voice0 } from "../test-utils.ts";
-import { addTrack, indexAfterMove, moveTrack, removeTrack, setKeySignature, setRepeat, setSection, setStaffTuning, setTempo, setTimeSignature, setTripletFeel } from "./structure.ts";
+import { addTrack, indexAfterMove, moveTrack, removeTrack, renameTrack, setKeySignature, setRepeat, setSection, setStaffTuning, setTempo, setTimeSignature, setTripletFeel } from "./structure.ts";
 import { normalizeScore, rebuildScore } from "../normalize.ts";
 import { EditorValidationError } from "../validation.ts";
 
@@ -148,6 +148,19 @@ describe("tracks", () => {
         const { score } = loadTex(TEX);
         expect(() => moveTrack(score, 0, 5)).toThrow(EditorValidationError);
         expect(() => moveTrack(score, -1, 0)).toThrow(EditorValidationError);
+    });
+
+    it("renames a track and trims the short name to 10 chars", () => {
+        const { score } = loadTex(TEX);
+        renameTrack(score, 0, "  Rhythm Guitar  ");
+        expect(score.tracks[0].name).toBe("Rhythm Guitar");
+        expect(score.tracks[0].shortName).toBe("Rhythm Gui"); // 10 chars
+    });
+
+    it("rejects an empty name or an out-of-range track index on rename", () => {
+        const { score } = loadTex(TEX);
+        expect(() => renameTrack(score, 0, "   ")).toThrow(EditorValidationError);
+        expect(() => renameTrack(score, 5, "X")).toThrow(EditorValidationError);
     });
 
     it("re-tunes a staff with the same string count", () => {

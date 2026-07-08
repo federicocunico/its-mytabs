@@ -857,20 +857,43 @@ export default defineComponent({
 
         addTrack(template) {
             const result = this.ctrl.addTrackToScore(template);
-            if (!result.ok && result.message) {
-                notify({ type: "warn", text: result.message });
+            if (!result.ok) {
+                if (result.message) {
+                    notify({ type: "warn", text: result.message });
+                }
                 return;
             }
-            this.switchTrack(this.ctrl.score.tracks.length - 1);
+            // Make the new track the edited one, but keep the Track Manager open
+            // (rebuild its list) so the user sees the track appear and can add
+            // more / rename / jump in via Edit.
+            const newIndex = this.ctrl.score.tracks.length - 1;
+            this.ctrl.changeTrack(newIndex);
+            this.trackIndex = newIndex;
+            this.trackName = this.ctrl.score.tracks[newIndex].name;
+            this.openTrackManager();
+        },
+
+        renameTrack(index, name) {
+            const result = this.ctrl.renameTrackInScore(index, name);
+            if (!result.ok) {
+                if (result.message) {
+                    notify({ type: "warn", text: result.message });
+                }
+                return;
+            }
+            if (index === this.trackIndex) {
+                this.trackName = name;
+            }
+            this.openTrackManager(); // rebuild trackList so the row reflects the new name
         },
 
         removeTrack(index) {
-            if (!window.confirm(`Remove track "${this.ctrl.score.tracks[index].name}" and all of its notes?`)) {
-                return;
-            }
+            // Confirmation is handled inline in the dialog (two-step button).
             const result = this.ctrl.removeTrackFromScore(index);
-            if (!result.ok && result.message) {
-                notify({ type: "warn", text: result.message });
+            if (!result.ok) {
+                if (result.message) {
+                    notify({ type: "warn", text: result.message });
+                }
                 return;
             }
             this.trackIndex = this.ctrl.cursor.trackIndex;
@@ -1734,12 +1757,13 @@ export default defineComponent({
     <BendDialog v-model="showBend" @apply="applyBendPreset" />
     <BarSettingsDialog v-model="showBarSettings" :initial="barSettingsInitial" @apply="applyBarSettings" />
     <TrackManagerDialog
-        v-model="showTracks"
+        v-model:open="showTracks"
         :tracks="trackList"
         :currentIndex="trackIndex"
         @switchTrack="switchTrack"
         @addTrack="addTrack"
         @removeTrack="removeTrack"
+        @renameTrack="renameTrack"
         @retune="retune"
     />
 

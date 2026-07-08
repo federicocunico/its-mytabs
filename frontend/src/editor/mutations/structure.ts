@@ -192,6 +192,20 @@ export function addTrack(score: Score, template: TrackTemplate): alphaTab.model.
     return track;
 }
 
+/** Rename a track (and derive its 10-char short name), matching addTrack's naming. */
+export function renameTrack(score: Score, trackIndex: number, name: string): void {
+    const trimmed = name.trim();
+    if (!trimmed) {
+        throw new EditorValidationError("A track needs a name");
+    }
+    if (trackIndex < 0 || trackIndex >= score.tracks.length) {
+        throw new EditorValidationError(`Invalid track index ${trackIndex}`);
+    }
+    const track = score.tracks[trackIndex];
+    track.name = trimmed;
+    track.shortName = trimmed.substring(0, 10);
+}
+
 export function removeTrack(score: Score, trackIndex: number): void {
     if (score.tracks.length <= 1) {
         throw new EditorValidationError("Cannot remove the only track");

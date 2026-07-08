@@ -325,6 +325,18 @@ describe("EditorController", () => {
         expect(ctrl.cursor.trackIndex).toBe(0);
     });
 
+    it("renames a track, is undoable, and rejects an empty name", () => {
+        ctrl.addTrackToScore({ name: "Bass", tuning: [43, 38, 33, 28], program: 33 });
+
+        expect(ctrl.renameTrackInScore(1, "Lead Bass").ok).toBe(true);
+        expect(ctrl.score.tracks[1].name).toBe("Lead Bass");
+
+        expect(ctrl.undo().ok).toBe(true);
+        expect(ctrl.score.tracks[1].name).toBe("Bass");
+
+        expect(ctrl.renameTrackInScore(1, "  ").ok).toBe(false);
+    });
+
     it("reorders tracks, keeps the cursor on the edited track, and is undoable", () => {
         const orig = ctrl.score.tracks[0].name;
         ctrl.addTrackToScore({ name: "Bass", tuning: [43, 38, 33, 28], program: 33 });

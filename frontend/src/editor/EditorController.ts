@@ -20,6 +20,7 @@ import {
     indexAfterMove,
     moveTrack,
     removeTrack,
+    renameTrack,
     setKeySignature,
     setRepeat,
     setSection,
@@ -403,6 +404,12 @@ export class EditorController {
             this.changeTrack(0);
         }
         return result;
+    }
+
+    renameTrackInScore(trackIndex: number, name: string): CommandResult {
+        return this.transact(() => {
+            renameTrack(this.score, trackIndex, name);
+        }, { structural: true, skipNormalize: true });
     }
 
     /** Reorder tracks (drag-and-drop); the edited-track cursor follows the moved track. */
