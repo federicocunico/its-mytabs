@@ -14,3 +14,4 @@ node_modules
 
 !/data/new_design
 .vercel
+.env*.local
