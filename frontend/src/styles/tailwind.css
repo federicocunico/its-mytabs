@@ -15,18 +15,35 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Preflight-lite. Tailwind's real preflight is skipped (Bootstrap's reboot is
- * the global reset), but border/button utilities assume these baselines. This
- * lives in the lowest layer, so any unlayered CSS (Bootstrap, the editor's
- * scoped SCSS) still wins wherever it sets these properties itself.
+ * Base reset. Tailwind's full preflight is intentionally skipped (it unstyles
+ * headings/lists app-wide, which the editor's scoped SCSS doesn't expect); this
+ * hand-rolled reset provides the essentials Bootstrap's reboot used to give —
+ * box-sizing, zeroed body margin, the app font/colours — plus the border/button
+ * baselines the utilities assume. Lives in the lowest layer, so scoped SCSS and
+ * component styles still win where they set these properties themselves.
  */
 @layer base {
     *,
     ::before,
     ::after {
+        box-sizing: border-box;
         border-width: 0;
         border-style: solid;
         border-color: var(--border);
+    }
+
+    html {
+        line-height: 1.5;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+
+    body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: var(--font-sans);
+        color: var(--foreground);
+        background-color: var(--background);
     }
 
     button {
