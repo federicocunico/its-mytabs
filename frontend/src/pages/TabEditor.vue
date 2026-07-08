@@ -1760,7 +1760,7 @@ export default defineComponent({
     <BendDialog v-model="showBend" @apply="applyBendPreset" />
     <BarSettingsDialog v-model="showBarSettings" :initial="barSettingsInitial" @apply="applyBarSettings" />
     <TrackManagerDialog
-        v-model:open="showTracks"
+        v-model="showTracks"
         :tracks="trackList"
         :currentIndex="trackIndex"
         @switchTrack="switchTrack"
