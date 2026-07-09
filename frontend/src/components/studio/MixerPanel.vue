@@ -144,7 +144,8 @@ export default defineComponent({
                     <input
                         type="range"
                         min="0"
-                        max="100"
+                        max="200"
+                        title="100 = the track's original volume from the file; drag past 100 to boost it further"
                         :value="t.volume"
                         class="slider"
                         :style="{ accentColor: t.color }"

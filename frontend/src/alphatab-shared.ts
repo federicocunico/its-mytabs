@@ -67,6 +67,57 @@ export function staffHasStrings(staff: alphaTab.model.Staff): boolean {
 }
 
 /**
+ * alphaTab's synth reserves MIDI channel 16 internally for the metronome
+ * click (`SynthConstants.MetronomeChannel`, not part of the public API).
+ * Legacy GP3/4/5 binary files assign track channels from a flat 64-slot
+ * table in file order (alphaTab's `Gp3To5Importer.readPlaybackInfos`), so a
+ * track that happens to land on slot 8+ gets primary/secondary channel 16+.
+ * Whenever the metronome or count-in is then enabled, alphaTab reprograms
+ * channel 16 into a drum kit, silently replacing that track's real
+ * instrument with drum hits for the rest of playback. Modern GP7/8 (gpif)
+ * files store in-range channel numbers explicitly, so this only ever
+ * surfaces on old-format imports.
+ */
+const RESERVED_METRONOME_CHANNEL = 16;
+
+export function sanitizeTrackChannels(score: alphaTab.model.Score): void {
+    const used = new Set<number>();
+    for (const track of score.tracks) {
+        if (track.playbackInfo.primaryChannel < RESERVED_METRONOME_CHANNEL) {
+            used.add(track.playbackInfo.primaryChannel);
+        }
+        if (track.playbackInfo.secondaryChannel < RESERVED_METRONOME_CHANNEL) {
+            used.add(track.playbackInfo.secondaryChannel);
+        }
+    }
+    const nextFreeChannel = (): number => {
+        for (let channel = 0; channel < RESERVED_METRONOME_CHANNEL; channel++) {
+            if (channel === 9) {
+                continue; // reserved for percussion
+            }
+            if (!used.has(channel)) {
+                used.add(channel);
+                return channel;
+            }
+        }
+        return RESERVED_METRONOME_CHANNEL - 1; // channels exhausted; last resort
+    };
+    for (const track of score.tracks) {
+        const info = track.playbackInfo;
+        const isPercussion = info.primaryChannel === 9 && info.secondaryChannel === 9;
+        if (isPercussion) {
+            continue;
+        }
+        if (info.primaryChannel >= RESERVED_METRONOME_CHANNEL) {
+            info.primaryChannel = nextFreeChannel();
+        }
+        if (info.secondaryChannel >= RESERVED_METRONOME_CHANNEL) {
+            info.secondaryChannel = nextFreeChannel();
+        }
+    }
+}
+
+/**
  * Force per-staff visibility on the track that's about to render, driven by the
  * view mode. This is authoritative because alphaTab honours a staff's own
  * `showTablature` / `showStandardNotation` flags over the stave profile, and

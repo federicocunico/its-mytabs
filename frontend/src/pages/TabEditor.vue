@@ -4,7 +4,7 @@ import { notify } from "@kyvg/vue3-notification";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog/index.ts";
 import { Button } from "@/components/ui/button/index.ts";
 import { ActionBuffer, baseURL, checkFetch, generalError, getSetting, getTrackInstrumentName } from "../app.js";
-import { applyTrackStaffVisibility, buildDisplayResources, getFileURL, getTempToken } from "../alphatab-shared.ts";
+import { applyTrackStaffVisibility, buildDisplayResources, getFileURL, getTempToken, sanitizeTrackChannels } from "../alphatab-shared.ts";
 import { STRING_COLORS_LIGHT, trackColor } from "../styles/colors.ts";
 import { EditorController } from "../editor/EditorController.ts";
 import { caretYOnLines } from "../editor/caret-geometry.ts";
@@ -125,6 +125,11 @@ export default defineComponent({
             noteColorOn: false,
             ready: false,
             playing: false,
+            // Whether the score pane auto-scrolls to follow the playback cursor.
+            // Starts true (autoscroll by default); a manual scroll during playback
+            // disengages it until the user clicks the "return to playhead" pill
+            // or restarts playback.
+            followPlayback: true,
             saving: false,
             midiDirty: false,
             enableMetronome: false,
@@ -364,6 +369,10 @@ export default defineComponent({
         window.removeEventListener("keydown", this._onKeydown);
         window.removeEventListener("beforeunload", this._onBeforeUnload);
         this.stopTransportPoll();
+        if (this._scoreScrollEl && this._onManualScroll) {
+            this._scoreScrollEl.removeEventListener("wheel", this._onManualScroll);
+            this._scoreScrollEl.removeEventListener("touchmove", this._onManualScroll);
+        }
         if (this.api) {
             this.api.destroy();
             this.api = null;
@@ -413,7 +422,8 @@ export default defineComponent({
                     enableCursor: true,
                     enableUserInteraction: true,
                     soundFont: "/soundfont/sonivox.sf2",
-                    scrollMode: alphaTab.ScrollMode.Off,
+                    scrollMode: alphaTab.ScrollMode.Continuous,
+                    scrollElement: ".st-score",
                     scrollOffsetY: -80,
                     playerMode: alphaTab.PlayerMode.EnabledSynthesizer,
                 },
@@ -427,6 +437,22 @@ export default defineComponent({
             });
 
             window.editorApi = this.api;
+
+            // A manual wheel/touch scroll during playback means the user wants to
+            // look elsewhere — disengage autoscroll until they ask to come back
+            // (resumeFollowPlayback) or restart playback. Plain 'scroll' events
+            // aren't used here because alphaTab's own autoscroll fires those too;
+            // wheel/touchmove only fire for actual user gestures.
+            this._scoreScrollEl = this.$refs.atContainer.closest(".st-score");
+            this._onManualScroll = () => {
+                if (this.playing && this.followPlayback) {
+                    this.followPlayback = false;
+                    this.api.settings.player.scrollMode = alphaTab.ScrollMode.Off;
+                    this.api.updateSettings();
+                }
+            };
+            this._scoreScrollEl?.addEventListener("wheel", this._onManualScroll, { passive: true });
+            this._scoreScrollEl?.addEventListener("touchmove", this._onManualScroll, { passive: true });
 
             // Surface player/render errors (failed worklet/soundfont load) as toasts.
             this.api.error.on((error) => {
@@ -449,6 +475,7 @@ export default defineComponent({
                 if (this.ctrl.score === score) {
                     return; // our own renderScore round-trip
                 }
+                sanitizeTrackChannels(score);
                 if (this.trackIndex < 0 || this.trackIndex >= score.tracks.length) {
                     this.trackIndex = 0;
                 }
@@ -493,9 +520,15 @@ export default defineComponent({
             });
 
             this.api.playerStateChanged.on((args) => {
+                const wasPlaying = this.playing;
                 this.playing = args.state === 1;
                 this.ui.playing = this.playing;
                 if (this.playing) {
+                    if (!wasPlaying) {
+                        this.followPlayback = true;
+                        this.api.settings.player.scrollMode = alphaTab.ScrollMode.Continuous;
+                        this.api.updateSettings();
+                    }
                     this.startTransportPoll();
                 } else {
                     this.stopTransportPoll();
@@ -1163,6 +1196,15 @@ export default defineComponent({
             }
         },
 
+        resumeFollowPlayback() {
+            this.followPlayback = true;
+            if (this.api) {
+                this.api.settings.player.scrollMode = alphaTab.ScrollMode.Continuous;
+                this.api.updateSettings();
+                this.api.scrollToCursor();
+            }
+        },
+
         toggleSolo(trackID) {
             if (!this.api) {
                 return;
@@ -1727,6 +1769,18 @@ export default defineComponent({
 
         <template #score>
             <div class="score-sheet">
+                <button
+                    v-if="playing && !followPlayback"
+                    type="button"
+                    class="follow-btn"
+                    title="Playback has scrolled out of view — click to follow the cursor again"
+                    @click="resumeFollowPlayback"
+                >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 5v14M6 13l6 6 6-6" />
+                    </svg>
+                    Return to playhead
+                </button>
                 <div ref="atContainer" v-pre class="score-sheet-inner"></div>
             </div>
         </template>
@@ -1867,6 +1921,35 @@ export default defineComponent({
         // Own the overlays' containing block; no padding, so its padding box
         // (the containing-block origin) matches alphaTab's (0,0).
         position: relative;
+    }
+}
+
+.follow-btn {
+    // Sticky (not absolute/fixed) so it stays pinned near the top of the
+    // *visible* scroll viewport of .st-score as the sheet scrolls, without
+    // disturbing .st-score's centering of .score-sheet (it stays the only flex
+    // item — this button lives inside it, floated to its right edge).
+    position: sticky;
+    top: 10px;
+    float: right;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: none;
+    background: $st-accent;
+    color: #fff;
+    font-family: $st-font-ui;
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
+
+    &:hover {
+        filter: brightness(1.08);
     }
 }
 
