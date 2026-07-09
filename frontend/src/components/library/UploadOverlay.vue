@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { Upload } from "@lucide/vue";
+import { collectDroppedFiles, type DroppedFile } from "@/storage/dropped-files.ts";
 
 const emit = defineEmits<{
-    files: [files: FileList];
+    files: [files: DroppedFile[]];
 }>();
 
 const active = ref(false);
@@ -28,14 +29,17 @@ function onDragOver(e: DragEvent) {
     if (hasFiles(e)) e.preventDefault();
 }
 
-function onDrop(e: DragEvent) {
+async function onDrop(e: DragEvent) {
     depth = 0;
     active.value = false;
     if (!hasFiles(e)) return;
     // Folder cards handle their own drops and stop propagation; anything that
     // reaches the window imports into the current folder.
     e.preventDefault();
-    if (e.dataTransfer?.files.length) emit("files", e.dataTransfer.files);
+    const dataTransfer = e.dataTransfer;
+    if (!dataTransfer) return;
+    const files = await collectDroppedFiles(dataTransfer);
+    if (files.length) emit("files", files);
 }
 
 onMounted(() => {
@@ -63,8 +67,8 @@ onBeforeUnmount(() => {
         <div v-if="active" class="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
             <div class="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-primary bg-card px-12 py-10 shadow-lg">
                 <Upload class="size-8 text-primary" />
-                <p class="text-sm font-medium text-foreground">Drop tab files to import</p>
-                <p class="text-xs text-muted-foreground">Guitar Pro, MusicXML and Capella files are supported</p>
+                <p class="text-sm font-medium text-foreground">Drop files or folders to import</p>
+                <p class="text-xs text-muted-foreground">Guitar Pro files open in the editor; other files are stored in your library</p>
             </div>
         </div>
     </Transition>

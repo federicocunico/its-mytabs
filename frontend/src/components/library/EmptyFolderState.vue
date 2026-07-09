@@ -20,7 +20,7 @@ const emit = defineEmits<{
         </div>
         <h2 class="mb-1 text-lg font-medium text-foreground">{{ isRoot ? "No tabs yet" : "This folder is empty" }}</h2>
         <p class="mb-6 max-w-sm text-sm text-muted-foreground">
-            Create a new tab from a template, or drop Guitar Pro / MusicXML files anywhere on this page to import them.
+            Create a new tab from a template, or drop files or folders anywhere on this page to import them.
         </p>
         <div class="flex flex-wrap items-center justify-center gap-2">
             <Button @click="emit('new-tab')">

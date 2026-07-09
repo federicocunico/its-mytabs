@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { basename, extname, isScoreFile, joinPath, normalizeRelPath, parentPath, stripExt } from "./paths.ts";
+import { basename, extname, isScoreFile, isTextFile, joinPath, normalizeRelPath, parentPath, stripExt } from "./paths.ts";
 
 describe("paths", () => {
     it("joins segments, treating '' as the root", () => {
@@ -29,6 +29,12 @@ describe("paths", () => {
         expect(isScoreFile("Song.musicxml")).toBe(true);
         expect(isScoreFile("notes.txt")).toBe(false);
         expect(isScoreFile("config.json")).toBe(false);
+    });
+    it("recognises plain text files only", () => {
+        expect(isTextFile("notes.txt")).toBe(true);
+        expect(isTextFile("notes.TXT")).toBe(true);
+        expect(isTextFile("Song.gp")).toBe(false);
+        expect(isTextFile("handout.pdf")).toBe(false);
     });
     it("normalises separators and trims slashes", () => {
         expect(normalizeRelPath("/Rock/Song.gp/")).toBe("Rock/Song.gp");

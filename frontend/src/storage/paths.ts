@@ -36,3 +36,7 @@ export function stripExt(name: string): string {
 export function isScoreFile(name: string): boolean {
     return SCORE_EXTS.has(extname(name));
 }
+
+export function isTextFile(name: string): boolean {
+    return extname(name) === "txt";
+}

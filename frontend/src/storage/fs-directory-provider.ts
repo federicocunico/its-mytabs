@@ -1,5 +1,5 @@
 import type { FolderEntry, ProviderCapabilities, StorageProvider, TabEntry, TabMeta } from "./types.ts";
-import { basename, extname, isScoreFile, joinPath, normalizeRelPath, parentPath } from "./paths.ts";
+import { basename, extname, joinPath, normalizeRelPath, parentPath } from "./paths.ts";
 import { defaultMeta, INDEX_VERSION, type IndexData, parseIndex, serializeIndex } from "./index-file.ts";
 
 export const META_DIR = ".mytabs";
@@ -54,7 +54,7 @@ export class FsDirectoryProvider implements StorageProvider {
             if (handle.kind === "directory") {
                 if (name === META_DIR) continue;
                 folders.push({ name, path: joinPath(path, name) });
-            } else if (isScoreFile(name)) {
+            } else {
                 tabPaths.push(joinPath(path, name));
             }
         }

@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { Folder, FolderInput, MoreVertical, Pencil, Trash2 } from "@lucide/vue";
 import type { FolderEntry } from "@/storage/types.ts";
+import { collectDroppedFiles, type DroppedFile } from "@/storage/dropped-files.ts";
 import { INTERNAL_DRAG_TYPE } from "./drag.ts";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu/index.ts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu/index.ts";
@@ -18,8 +19,8 @@ const emit = defineEmits<{
     delete: [];
     /** An internal entry (tab or folder path) was dropped onto this folder. */
     "move-into": [path: string];
-    /** OS files were dropped onto this folder. */
-    "import-into": [files: FileList];
+    /** OS files (or folders) were dropped onto this folder. */
+    "import-into": [files: DroppedFile[]];
 }>();
 
 const dragOver = ref(false);
@@ -33,17 +34,19 @@ function onDragOver(e: DragEvent) {
     }
 }
 
-function onDrop(e: DragEvent) {
+async function onDrop(e: DragEvent) {
     dragOver.value = false;
     if (!e.dataTransfer) return;
     e.preventDefault();
     e.stopPropagation();
-    const internal = e.dataTransfer.getData(INTERNAL_DRAG_TYPE);
+    const dataTransfer = e.dataTransfer;
+    const internal = dataTransfer.getData(INTERNAL_DRAG_TYPE);
     if (internal) {
         if (internal !== props.folder.path) emit("move-into", internal);
-    } else if (e.dataTransfer.files.length) {
-        emit("import-into", e.dataTransfer.files);
+        return;
     }
+    const files = await collectDroppedFiles(dataTransfer);
+    if (files.length) emit("import-into", files);
 }
 
 function onDragStart(e: DragEvent) {

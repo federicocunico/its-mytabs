@@ -6,6 +6,7 @@ import Settings from "./pages/Settings.vue";
 import { applyTheme } from "./theme.ts";
 
 const TabEditor = () => import("./pages/TabEditor.vue");
+const TextEditor = () => import("./pages/TextEditor.vue");
 
 const routes: RouteRecordRaw[] = [
     {
@@ -38,6 +39,12 @@ const routes: RouteRecordRaw[] = [
         path: "/edit",
         component: TabEditor,
         meta: { studio: true },
+    },
+    {
+        // Plain-text files get a lightweight standalone read/edit view.
+        name: "textPath",
+        path: "/text",
+        component: TextEditor,
     },
 
     // Legacy URLs from the retired server-backed app fall back to home.

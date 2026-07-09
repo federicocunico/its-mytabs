@@ -3,8 +3,9 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { getProvider, subscribe } from "@/storage/session.ts";
 import type { FolderEntry, StorageProvider, TabEntry } from "@/storage/types.ts";
-import { extname, isScoreFile, joinPath, normalizeRelPath, stripExt } from "@/storage/paths.ts";
-import { generalError, successMessage } from "@/app.ts";
+import { basename, extname, isScoreFile, isTextFile, joinPath, normalizeRelPath, parentPath, stripExt } from "@/storage/paths.ts";
+import type { DroppedFile } from "@/storage/dropped-files.ts";
+import { generalError, infoMessage, successMessage } from "@/app.ts";
 import LibraryTopBar from "@/components/library/LibraryTopBar.vue";
 import FolderCard from "@/components/library/FolderCard.vue";
 import TabCard from "@/components/library/TabCard.vue";
@@ -114,7 +115,13 @@ function navigate(toDir: string) {
 }
 
 function openTab(t: TabEntry) {
-    router.push({ name: "editPath", query: { path: t.path } });
+    if (isScoreFile(t.name)) {
+        router.push({ name: "editPath", query: { path: t.path } });
+    } else if (isTextFile(t.name)) {
+        router.push({ name: "textPath", query: { path: t.path } });
+    } else {
+        infoMessage("No viewer for this file type yet — it's stored, and you can download it from the file's menu.");
+    }
 }
 
 // --- Mutations (provider call → toast on error → refresh) ---
@@ -237,26 +244,25 @@ async function freePath(p: StorageProvider, targetDir: string, name: string): Pr
     }
 }
 
-async function importFiles(files: FileList | File[], targetDir = dir.value) {
+/** Accepts a flat picker FileList, or entries carrying a subfolder-aware relativePath (from a dropped OS folder). */
+async function importFiles(files: FileList | File[] | DroppedFile[], targetDir = dir.value) {
     const p = provider.value;
     if (!p || isFavorites.value) return;
+    const list: (File | DroppedFile)[] = Array.isArray(files) ? files : Array.from(files);
+    const entries: DroppedFile[] = list.map((f) => (f instanceof File ? { file: f, relativePath: f.name } : f));
     let imported = 0;
-    let skipped = 0;
-    for (const file of Array.from(files)) {
-        if (!isScoreFile(file.name)) {
-            skipped++;
-            continue;
-        }
+    for (const { file, relativePath } of entries) {
         try {
+            const wanted = joinPath(targetDir, relativePath);
+            const path = await freePath(p, parentPath(wanted), basename(wanted));
             const bytes = new Uint8Array(await file.arrayBuffer());
-            await p.writeTab(await freePath(p, targetDir, file.name), bytes);
+            await p.writeTab(path, bytes);
             imported++;
         } catch (e) {
             generalError(e);
         }
     }
-    if (imported) successMessage(`Imported ${imported} ${imported === 1 ? "tab" : "tabs"}`);
-    if (skipped) generalError(new Error(`${skipped} ${skipped === 1 ? "file is" : "files are"} not a supported tab format`));
+    if (imported) successMessage(`Imported ${imported} ${imported === 1 ? "file" : "files"}`);
     await refresh();
 }
 
@@ -367,7 +373,6 @@ function onUploadPicked(e: Event) {
             ref="uploadInput"
             type="file"
             multiple
-            accept=".gp,.gpx,.gp3,.gp4,.gp5,.musicxml,.capx"
             class="hidden"
             data-testid="upload-input"
             @change="onUploadPicked"

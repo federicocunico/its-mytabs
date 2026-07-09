@@ -77,6 +77,13 @@ export function successMessage(msg: string): void {
     });
 }
 
+export function infoMessage(msg: string): void {
+    notify({
+        text: msg,
+        type: "warn",
+    });
+}
+
 export function generalError(e: unknown): void {
     if (!(e instanceof Error)) {
         notify({
