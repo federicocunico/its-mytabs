@@ -34,9 +34,7 @@ function fakeDirEntry(name: string, children: FileSystemEntry[]): FileSystemDire
 
 function fakeDataTransfer(entries: FileSystemEntry[], flatFiles: File[] = []): DataTransfer {
     return {
-        items: entries.length
-            ? (entries.map((entry) => ({ webkitGetAsEntry: () => entry })) as unknown as DataTransferItemList)
-            : undefined,
+        items: entries.length ? (entries.map((entry) => ({ webkitGetAsEntry: () => entry })) as unknown as DataTransferItemList) : undefined,
         files: flatFiles as unknown as FileList,
     } as unknown as DataTransfer;
 }
