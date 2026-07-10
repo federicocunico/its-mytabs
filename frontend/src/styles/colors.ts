@@ -31,8 +31,10 @@ export const STRING_COLORS_LIGHT: Record<number, string> = {
 };
 
 /**
- * Track palette for the mixer / navigator. Auto-assigned by track index
- * (wrapping) until per-track editable colours land (see INTEGRATION_PLAN §8b).
+ * Track palette for the mixer / navigator. Used both as the auto-assigned
+ * fallback (by track slot, wrapping) and as the preset swatches offered by the
+ * per-track colour picker. A track's own colour (`Track.color`, persisted in the
+ * .gp) overrides this — see `resolveTrackColor`.
  */
 export const TRACK_COLORS: string[] = [
     "#5b6ef5", // indigo  (Lead)
@@ -45,9 +47,38 @@ export const TRACK_COLORS: string[] = [
     "#e0629b", // pink
     "#e07b39", // orange
     "#8b95a1", // grey
+    "#d4b106", // gold
+    "#0ea5a5", // cyan
 ];
 
 /** Stable colour for a track given its index. */
 export function trackColor(index: number): string {
     return TRACK_COLORS[index % TRACK_COLORS.length];
+}
+
+/** Minimal shape of an alphaTab Color (r/g/b 0-255). */
+interface RgbColor {
+    r: number;
+    g: number;
+    b: number;
+}
+
+/** AlphaTab's default `Track.color` (200,0,0) — treated as "no explicit colour set". */
+function isDefaultTrackColor(c: RgbColor): boolean {
+    return c.r === 200 && c.g === 0 && c.b === 0;
+}
+
+/**
+ * Display colour for a track: the track's own `Track.color` (persisted in the
+ * .gp, set by the user or read from the file) when it is meaningfully set,
+ * otherwise the curated palette colour for `fallbackSlot`. A user picking exactly
+ * rgb(200,0,0) collides with the "unset" sentinel and falls back to the palette
+ * — the red preset swatch is `#d23b34`, not pure `#c80000`, to avoid this.
+ */
+export function resolveTrackColor(track: { color?: RgbColor | null } | null | undefined, fallbackSlot: number): string {
+    const c = track?.color;
+    if (c && !isDefaultTrackColor(c)) {
+        return `rgb(${c.r}, ${c.g}, ${c.b})`;
+    }
+    return trackColor(fallbackSlot);
 }

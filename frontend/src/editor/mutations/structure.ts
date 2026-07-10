@@ -248,6 +248,43 @@ export function indexAfterMove(index: number, from: number, to: number): number 
     return i;
 }
 
+/** Change a track's MIDI instrument (General MIDI program number). */
+export function setTrackProgram(score: Score, trackIndex: number, program: number): void {
+    if (!Number.isInteger(program) || program < 0 || program > 127) {
+        throw new EditorValidationError("MIDI program must be 0..127");
+    }
+    if (trackIndex < 0 || trackIndex >= score.tracks.length) {
+        throw new EditorValidationError(`Invalid track index ${trackIndex}`);
+    }
+    const track = score.tracks[trackIndex];
+    track.playbackInfo.program = program;
+    // GP7 stores the sounding program in a beat-0 "Instrument" automation, which
+    // overrides playbackInfo.program on re-import (and drives the synth program
+    // change). Update it — or add one if the track has none — so the instrument
+    // change both plays and survives export.
+    const firstBeat = track.staves[0]?.bars[0]?.voices[0]?.beats[0];
+    if (firstBeat) {
+        const existing = firstBeat.getAutomation(alphaTab.model.AutomationType.Instrument);
+        if (existing) {
+            existing.value = program;
+        } else {
+            firstBeat.automations.push(alphaTab.model.Automation.buildInstrumentAutomation(false, 0, program));
+        }
+    }
+}
+
+/** Set a track's display colour (persisted in the .gp) from a "#rrggbb" hex string. */
+export function setTrackColor(score: Score, trackIndex: number, hex: string): void {
+    if (trackIndex < 0 || trackIndex >= score.tracks.length) {
+        throw new EditorValidationError(`Invalid track index ${trackIndex}`);
+    }
+    const color = alphaTab.model.Color.fromJson(hex);
+    if (!color) {
+        throw new EditorValidationError(`Invalid colour ${hex}`);
+    }
+    score.tracks[trackIndex].color = color;
+}
+
 /** Re-tune a staff. Changing the string count is only allowed while the staff has no notes. */
 export function setStaffTuning(staff: Staff, tuning: number[], capo: number): void {
     if (tuning.length !== staff.tuning.length) {

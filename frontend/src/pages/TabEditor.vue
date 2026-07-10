@@ -3,9 +3,9 @@ import { defineComponent } from "vue";
 import { notify } from "@kyvg/vue3-notification";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog/index.ts";
 import { Button } from "@/components/ui/button/index.ts";
-import { ActionBuffer, baseURL, checkFetch, generalError, getSetting, getTrackInstrumentName } from "../app.js";
+import { ActionBuffer, baseURL, checkFetch, generalError, getSetting, getTrackInstrumentName, isPercussionTrack } from "../app.js";
 import { applyTrackStaffVisibility, buildDisplayResources, getFileURL, getTempToken, sanitizeTrackChannels } from "../alphatab-shared.ts";
-import { STRING_COLORS_LIGHT, trackColor } from "../styles/colors.ts";
+import { resolveTrackColor, STRING_COLORS_LIGHT, trackColor } from "../styles/colors.ts";
 import { EditorController } from "../editor/EditorController.ts";
 import { caretYOnLines } from "../editor/caret-geometry.ts";
 import { indexAfterMove } from "../editor/mutations/structure.ts";
@@ -26,6 +26,7 @@ import TransportBar from "../components/studio/TransportBar.vue";
 import BendDialog from "../components/editor/BendDialog.vue";
 import BarSettingsDialog from "../components/editor/BarSettingsDialog.vue";
 import TrackManagerDialog from "../components/editor/TrackManagerDialog.vue";
+import TrackEditDialog from "../components/editor/TrackEditDialog.vue";
 
 const speedActionBuffer = new ActionBuffer(1000);
 
@@ -89,6 +90,7 @@ export default defineComponent({
         BendDialog,
         BarSettingsDialog,
         TrackManagerDialog,
+        TrackEditDialog,
         Dialog,
         DialogContent,
         DialogDescription,
@@ -140,9 +142,17 @@ export default defineComponent({
             soloTrackID: -1,
             muteTrackList: {},
             trackVolumes: {},
+            // The file's original per-track volume (GP 0-16), index-keyed, captured
+            // at load. The volume slider is a live multiplier over this; the value
+            // is baked back into playbackInfo.volume at save (see commitTrackVolumes).
+            trackVolumeBase: {},
+            // Bumped on any track-meta edit (name/instrument/tuning/colour) so the
+            // mixerTracks computed re-reads the (non-reactive) score graph.
+            trackMetaRev: 0,
             // Colour slot per track, keyed by the track's primaryChannel (a stable
             // id that survives the JSON rebuild + reorder), so a track keeps its
-            // colour when moved. Value is a palette slot; trackColor() wraps it.
+            // fallback colour when moved. A track's own Track.color (persisted in
+            // the .gp) overrides this slot — see resolveTrackColor.
             trackColorMap: {},
             playbackRange: null,
             studio: {
@@ -157,6 +167,8 @@ export default defineComponent({
             showBend: false,
             showBarSettings: false,
             showTracks: false,
+            showTrackEdit: false,
+            trackEditTarget: null,
             showLeaveModal: false,
             leavingTo: null,
             barSettingsInitial: {},
@@ -245,11 +257,14 @@ export default defineComponent({
             if (!this.ctrl?.score) {
                 return [];
             }
+            // Track meta (name/instrument/tuning/colour) lives on the non-reactive
+            // score graph; reading trackMetaRev registers a dep so edits re-run this.
+            void this.trackMetaRev;
             return this.ctrl.score.tracks.map((t, i) => ({
                 index: i,
                 name: t.name || getTrackInstrumentName(t),
                 instrument: getTrackInstrumentName(t),
-                color: trackColor(this.trackColorMap[t.playbackInfo.primaryChannel] ?? i),
+                color: resolveTrackColor(t, this.trackColorMap[t.playbackInfo.primaryChannel] ?? i),
                 solo: this.soloTrackID === i,
                 mute: !!this.muteTrackList[i],
                 volume: this.trackVolumes[i] ?? 100,
@@ -859,11 +874,16 @@ export default defineComponent({
             }
         },
 
-        openTrackManager() {
+        /** Rebuild the Track Manager's plain track list (the score isn't reactive). */
+        rebuildTrackList() {
             this.trackList = this.ctrl.score.tracks.map((t) => ({
                 name: t.name,
                 strings: t.staves[0]?.tuning.length ?? 0,
             }));
+        },
+
+        openTrackManager() {
+            this.rebuildTrackList();
             this.showTracks = true;
         },
 
@@ -958,6 +978,95 @@ export default defineComponent({
             } else {
                 this.showTracks = false;
             }
+        },
+
+        // ---- per-track Edit dialog (three-dots menu in the mixer) ----
+
+        /** Snapshot a track's editable meta for the Edit Track dialog. */
+        buildTrackEditTarget(index) {
+            const t = this.ctrl.score.tracks[index];
+            if (!t) {
+                return null;
+            }
+            const staff = t.staves[0];
+            const slot = this.trackColorMap[t.playbackInfo.primaryChannel] ?? index;
+            return {
+                index,
+                name: t.name || getTrackInstrumentName(t),
+                program: t.playbackInfo?.program ?? 0,
+                tuning: [...(staff?.stringTuning?.tunings ?? [])],
+                capo: staff?.capo ?? 0,
+                strings: staff?.tuning?.length ?? 0,
+                color: resolveTrackColor(t, slot),
+                isPercussion: isPercussionTrack(t),
+            };
+        },
+
+        editTrack(index) {
+            this.trackEditTarget = this.buildTrackEditTarget(index);
+            if (this.trackEditTarget) {
+                this.showTrackEdit = true;
+            }
+        },
+
+        /** Re-read the open dialog's target and force the mixer/navigator to re-render. */
+        afterTrackMetaEdit() {
+            this.trackMetaRev++;
+            this.rebuildTrackList();
+            if (this.showTrackEdit && this.trackEditTarget) {
+                this.trackEditTarget = this.buildTrackEditTarget(this.trackEditTarget.index);
+                if (!this.trackEditTarget) {
+                    this.showTrackEdit = false;
+                }
+            }
+        },
+
+        /** Rename from the Edit dialog (kept separate from renameTrack, which also opens the Track Manager). */
+        renameTrackMeta(index, name) {
+            const result = this.ctrl.renameTrackInScore(index, name);
+            if (!result.ok) {
+                if (result.message) {
+                    notify({ type: "warn", text: result.message });
+                }
+                return;
+            }
+            if (index === this.trackIndex) {
+                this.trackName = name;
+            }
+            this.afterTrackMetaEdit();
+        },
+
+        setTrackInstrument(index, program) {
+            const result = this.ctrl.setTrackInstrument(index, program);
+            if (!result.ok) {
+                if (result.message) {
+                    notify({ type: "warn", text: result.message });
+                }
+                return;
+            }
+            this.afterTrackMetaEdit();
+        },
+
+        retuneTrack(index, payload) {
+            const result = this.ctrl.setTuningForTrack(index, payload.tuning, payload.capo);
+            if (!result.ok) {
+                if (result.message) {
+                    notify({ type: "warn", text: result.message });
+                }
+                return;
+            }
+            this.afterTrackMetaEdit();
+        },
+
+        setTrackColor({ index, hex }) {
+            const result = this.ctrl.setTrackColorInScore(index, hex);
+            if (!result.ok) {
+                if (result.message) {
+                    notify({ type: "warn", text: result.message });
+                }
+                return;
+            }
+            this.afterTrackMetaEdit();
         },
 
         deleteBarWithConfirm() {
@@ -1096,12 +1205,17 @@ export default defineComponent({
 
         initTrackVolumes(score) {
             // changeTrackVolume takes a multiplier relative to the file's own
-            // track volume, so every slider starts at 100%.
+            // track volume, so every slider starts at 100%. We also snapshot each
+            // track's stored volume (GP 0-16) as the baseline the slider scales,
+            // and that commitTrackVolumes() bakes back on save.
             const volumes = {};
+            const bases = {};
             score.tracks.forEach((t, i) => {
                 volumes[i] = 100;
+                bases[i] = t.playbackInfo?.volume ?? 15;
             });
             this.trackVolumes = volumes;
+            this.trackVolumeBase = bases;
         },
 
         rebuildNavigatorData() {
@@ -1247,6 +1361,32 @@ export default defineComponent({
             this.trackVolumes[index] = value;
             const track = this.api.score.tracks[index];
             this.api.changeTrackVolume(track, value / 100);
+            // The slider is a live multiplier; the value is baked into
+            // playbackInfo.volume at save (commitTrackVolumes). Flag dirty so the
+            // change is saveable.
+            if (this.ctrl) {
+                this.ctrl.dirty = true;
+                this.refreshUi();
+            }
+        },
+
+        /**
+         * Bake the mixer volumes back into the score's playbackInfo.volume (GP
+         * 0-16) so they persist in the exported .gp. Called right before every
+         * exportGp(). The slider is a multiplier over the file's original volume
+         * (base); only up to 100% is stored — the >100% boost is a runtime-only
+         * overlay that GP cannot represent.
+         */
+        commitTrackVolumes() {
+            if (!this.ctrl?.score) {
+                return;
+            }
+            this.ctrl.score.tracks.forEach((t, i) => {
+                const pct = this.trackVolumes[i] ?? 100;
+                const base = this.trackVolumeBase[i] ?? t.playbackInfo?.volume ?? 15;
+                const stored = Math.max(0, Math.min(16, Math.round((base * Math.min(pct, 100)) / 100)));
+                t.playbackInfo.volume = stored;
+            });
         },
 
         seekToBar(barIndex) {
@@ -1643,6 +1783,7 @@ export default defineComponent({
                 this.ui.saving = true;
                 try {
                     this.restoreStaffVisibility();
+                    this.commitTrackVolumes();
                     const bytes = this.ctrl.exportGp();
                     let targetPath = this.storagePath;
                     // convert-to-.gp: write a new .gp beside a non-.gp original, leave original intact.
@@ -1687,6 +1828,7 @@ export default defineComponent({
             try {
                 // Strip view-only staff visibility so the saved file keeps its original layout.
                 this.restoreStaffVisibility();
+                this.commitTrackVolumes();
                 const bytes = this.ctrl.exportGp();
                 await saveScoreToServer(baseURL, this.tabID, bytes);
                 this.ctrl.markSaved();
@@ -1702,6 +1844,7 @@ export default defineComponent({
         download() {
             // Strip view-only staff visibility so the exported file keeps its original layout.
             this.restoreStaffVisibility();
+            this.commitTrackVolumes();
             const bytes = this.ctrl.exportGp();
             const name = [this.tab.artist, this.tab.title].filter(Boolean).join(" - ") || "tab";
             downloadGp(bytes, name);
@@ -1798,6 +1941,8 @@ export default defineComponent({
                 @set-master="setMasterVolume"
                 @add-track="openTrackManager"
                 @move-track="moveTrack"
+                @edit-track="editTrack"
+                @set-color="setTrackColor"
             />
         </template>
 
@@ -1867,6 +2012,14 @@ export default defineComponent({
         @removeTrack="removeTrack"
         @renameTrack="renameTrack"
         @retune="retune"
+    />
+    <TrackEditDialog
+        v-model:open="showTrackEdit"
+        :track="trackEditTarget"
+        @renameTrack="renameTrackMeta"
+        @setInstrument="setTrackInstrument"
+        @retune="retuneTrack"
+        @setColor="(index, hex) => setTrackColor({ index, hex })"
     />
 
     <Dialog v-model:open="showHelp">

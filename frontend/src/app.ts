@@ -25,6 +25,13 @@ export function getInstrumentName(midiProgram: number) {
     return midiProgramCodeList[midiProgram] || "Unknown";
 }
 
+/** General MIDI program list as `{ program, name }` pairs, ascending by program number. */
+export function instrumentList(): Array<{ program: number; name: string }> {
+    return Object.entries(midiProgramCodeList)
+        .map(([program, name]) => ({ program: Number(program), name: name as string }))
+        .sort((a, b) => a.program - b.program);
+}
+
 /** Minimal shape of an alphaTab track needed to identify its instrument. */
 type InstrumentTrack = { playbackInfo?: { program?: number; primaryChannel?: number } };
 

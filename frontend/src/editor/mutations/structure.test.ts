@@ -1,7 +1,22 @@
 import { describe, expect, it } from "vitest";
 import * as alphaTab from "@coderline/alphatab";
 import { loadTex, voice0 } from "../test-utils.ts";
-import { addTrack, indexAfterMove, moveTrack, removeTrack, renameTrack, setKeySignature, setRepeat, setSection, setStaffTuning, setTempo, setTimeSignature, setTripletFeel } from "./structure.ts";
+import {
+    addTrack,
+    indexAfterMove,
+    moveTrack,
+    removeTrack,
+    renameTrack,
+    setKeySignature,
+    setRepeat,
+    setSection,
+    setStaffTuning,
+    setTempo,
+    setTimeSignature,
+    setTrackColor,
+    setTrackProgram,
+    setTripletFeel,
+} from "./structure.ts";
 import { normalizeScore, rebuildScore } from "../normalize.ts";
 import { EditorValidationError } from "../validation.ts";
 
@@ -178,6 +193,43 @@ describe("tracks", () => {
         const { score } = loadTex(TEX);
         const staff = score.tracks[0].staves[0];
         expect(() => setStaffTuning(staff, [43, 38, 33, 28], 0)).toThrow(EditorValidationError);
+    });
+
+    it("changes a track's instrument and it survives an export round-trip", () => {
+        const { score, settings } = loadTex(TEX);
+        setTrackProgram(score, 0, 30); // Distortion Guitar
+        expect(score.tracks[0].playbackInfo.program).toBe(30);
+
+        const bytes = new alphaTab.exporter.Gp7Exporter().export(score, settings);
+        const reloaded = alphaTab.importer.ScoreLoader.loadScoreFromBytes(bytes, settings);
+        expect(reloaded.tracks[0].playbackInfo.program).toBe(30);
+    });
+
+    it("rejects an out-of-range program or track index", () => {
+        const { score } = loadTex(TEX);
+        expect(() => setTrackProgram(score, 0, 128)).toThrow(EditorValidationError);
+        expect(() => setTrackProgram(score, 0, -1)).toThrow(EditorValidationError);
+        expect(() => setTrackProgram(score, 5, 30)).toThrow(EditorValidationError);
+    });
+
+    it("sets a track colour that survives an export round-trip", () => {
+        const { score, settings } = loadTex(TEX);
+        setTrackColor(score, 0, "#3366cc");
+        expect(score.tracks[0].color.r).toBe(0x33);
+        expect(score.tracks[0].color.g).toBe(0x66);
+        expect(score.tracks[0].color.b).toBe(0xcc);
+
+        const bytes = new alphaTab.exporter.Gp7Exporter().export(score, settings);
+        const reloaded = alphaTab.importer.ScoreLoader.loadScoreFromBytes(bytes, settings);
+        expect(reloaded.tracks[0].color.r).toBe(0x33);
+        expect(reloaded.tracks[0].color.g).toBe(0x66);
+        expect(reloaded.tracks[0].color.b).toBe(0xcc);
+    });
+
+    it("rejects an invalid colour or out-of-range track index", () => {
+        const { score } = loadTex(TEX);
+        expect(() => setTrackColor(score, 5, "#3366cc")).toThrow(EditorValidationError);
+        expect(() => setTrackColor(score, 0, "not-a-colour")).toThrow(EditorValidationError);
     });
 });
 

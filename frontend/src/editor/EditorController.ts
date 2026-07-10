@@ -27,6 +27,8 @@ import {
     setStaffTuning,
     setTempo,
     setTimeSignature,
+    setTrackColor,
+    setTrackProgram,
     setTripletFeel,
     type TrackTemplate,
 } from "./mutations/structure.ts";
@@ -429,6 +431,31 @@ export class EditorController {
             }
             setStaffTuning(staff, tuning, capo);
         }, { structural: true });
+    }
+
+    /** Re-tune a specific track (used by the per-track Edit dialog, which targets any track). */
+    setTuningForTrack(trackIndex: number, tuning: number[], capo: number): CommandResult {
+        return this.transact(() => {
+            const staff = this.score.tracks[trackIndex]?.staves[0];
+            if (!staff) {
+                throw new EditorValidationError(`No staff at track ${trackIndex}`);
+            }
+            setStaffTuning(staff, tuning, capo);
+        }, { structural: true });
+    }
+
+    /** Change a track's MIDI instrument. Non-structural: the re-render request regenerates the MIDI (with the new program) without a full re-import. */
+    setTrackInstrument(trackIndex: number, program: number): CommandResult {
+        return this.transact(() => {
+            setTrackProgram(this.score, trackIndex, program);
+        });
+    }
+
+    /** Set a track's display colour (persisted in the .gp). UI-only visual — no rebuild needed. */
+    setTrackColorInScore(trackIndex: number, hex: string): CommandResult {
+        return this.transact(() => {
+            setTrackColor(this.score, trackIndex, hex);
+        });
     }
 
     /** Switch the edited track; the host re-renders via onScoreReplaced. */

@@ -1,21 +1,24 @@
 <script>
 import { defineComponent } from "vue";
+import { ColorPickerPopover } from "@/components/ui/color-picker/index.ts";
 
 /**
  * Right-rail mixer — a persistent, docked version of the player's old
  * track-list dropdown. Purely presentational: every control emits an event the
  * Studio page maps to an existing alphaTab call (masterVolume, changeTrackMute,
- * changeTrackVolume, changeTrack/switchTrack). No playback logic lives here.
+ * changeTrackVolume, changeTrack/switchTrack) or EditorController method
+ * (editTrack, setColor). No playback logic lives here.
  *
  * Each track: { index, name, instrument, color, solo, mute, volume, selected }
  */
 export default defineComponent({
+    components: { ColorPickerPopover },
     props: {
         tracks: { type: Array, required: true },
         master: { type: Number, default: 100 },
         playing: { type: Boolean, default: false },
     },
-    emits: ["selectTrack", "toggleSolo", "toggleMute", "setVolume", "setMaster", "addTrack", "moveTrack"],
+    emits: ["selectTrack", "toggleSolo", "toggleMute", "setVolume", "setMaster", "addTrack", "moveTrack", "editTrack", "setColor"],
     data() {
         return { dragFrom: null, dragOverIndex: null };
     },
@@ -110,14 +113,9 @@ export default defineComponent({
                             <circle cx="7" cy="13" r="1.3" />
                         </svg>
                     </span>
-                    <span class="track-bar" :style="{ background: t.color }"></span>
-                    <span class="track-icon" :style="{ background: t.color + '22', borderColor: t.color + '66' }">
-                        <svg width="15" height="15" viewBox="0 0 24 24" :fill="t.color">
-                            <path d="M9 18V5l12-2v13" />
-                            <circle cx="6" cy="18" r="3" />
-                            <circle cx="18" cy="16" r="3" />
-                        </svg>
-                    </span>
+                    <ColorPickerPopover :model-value="t.color" @select="(hex) => $emit('setColor', { index: t.index, hex })">
+                        <button class="track-bar" :style="{ background: t.color }" title="Change colour" @click.stop></button>
+                    </ColorPickerPopover>
                     <div class="track-meta">
                         <div class="track-name" :title="t.name">{{ t.name }}</div>
                         <div class="track-inst">{{ t.instrument }}</div>
@@ -127,6 +125,13 @@ export default defineComponent({
                         <span :style="{ background: audible(t) ? t.color : 'var(--st-text-faint)', animationDuration: '0.33s', animationDelay: '0.08s' }"></span>
                         <span :style="{ background: audible(t) ? t.color : 'var(--st-text-faint)', animationDuration: '0.5s', animationDelay: '0.04s' }"></span>
                     </div>
+                    <button class="track-more" title="Edit track" @click.stop="$emit('editTrack', t.index)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="12" cy="5" r="1.7" />
+                            <circle cx="12" cy="12" r="1.7" />
+                            <circle cx="12" cy="19" r="1.7" />
+                        </svg>
+                    </button>
                 </div>
                 <div class="track-ctl">
                     <button
@@ -276,20 +281,41 @@ export default defineComponent({
 }
 
 .track-bar {
-    width: 4px;
+    width: 6px;
     height: 30px;
     border-radius: 3px;
     flex: none;
+    padding: 0;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.12s, box-shadow 0.12s;
+
+    &:hover {
+        transform: scaleX(1.5);
+    }
+    &:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 2px $st-slider-ring;
+    }
 }
 
-.track-icon {
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
+.track-more {
     flex: none;
     display: grid;
     place-items: center;
-    border: 1px solid;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    background: transparent;
+    border: none;
+    color: $st-text-faint;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+
+    &:hover {
+        background: $st-hover;
+        color: $st-text;
+    }
 }
 
 .track-meta {
@@ -341,11 +367,15 @@ export default defineComponent({
 }
 
 .sm-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 26px;
     height: 24px;
     border-radius: 6px;
     font-size: 11px;
     font-weight: 700;
+    line-height: 1;
     cursor: pointer;
     background: $st-panel-2;
     border: 1px solid $st-border-2;

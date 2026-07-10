@@ -5,26 +5,7 @@ import { Button } from "@/components/ui/button/index.ts";
 import { Input } from "@/components/ui/input/index.ts";
 import { Label } from "@/components/ui/label/index.ts";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog/index.ts";
-
-interface TuningPreset {
-    id: string;
-    label: string;
-    tuning: number[];
-    program: number;
-}
-
-const TUNING_PRESETS: TuningPreset[] = [
-    { id: "guitar-standard", label: "Guitar — Standard (EADGBE)", tuning: [64, 59, 55, 50, 45, 40], program: 25 },
-    { id: "guitar-drop-d", label: "Guitar — Drop D", tuning: [64, 59, 55, 50, 45, 38], program: 25 },
-    { id: "guitar-7", label: "Guitar — 7-string", tuning: [64, 59, 55, 50, 45, 40, 35], program: 25 },
-    { id: "bass-4", label: "Bass — 4-string (EADG)", tuning: [43, 38, 33, 28], program: 33 },
-    { id: "bass-5", label: "Bass — 5-string (BEADG)", tuning: [43, 38, 33, 28, 23], program: 33 },
-];
-
-/** The instrument name at the head of a preset label ("Guitar — Standard…" -> "Guitar"). */
-function instrumentOf(preset: TuningPreset): string {
-    return preset.label.split("—")[0].trim();
-}
+import { instrumentOf, TUNING_PRESETS } from "@/editor/tunings.ts";
 
 const props = defineProps<{
     tracks: { name: string; strings: number }[];
